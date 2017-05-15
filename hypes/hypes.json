@@ -1,0 +1,9 @@
+{
+    "im_width" : 572,
+    "im_height" : 572,
+    "num_channel": 19,
+    "num_class": 11,
+    "queue_size" : 20,
+    "batch_size" : 2,
+    "padding": "VALID"
+}
