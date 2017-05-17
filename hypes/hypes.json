@@ -5,5 +5,5 @@
     "num_class": 11,
     "queue_size" : 20,
     "batch_size" : 2,
-    "padding": "VALID"
+    "padding": "SAME"
 }
