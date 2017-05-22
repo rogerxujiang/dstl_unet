@@ -3,8 +3,8 @@ __author__ = 'rj'
 
 '''
 Purposes:
- 1. data visualization
- 2. evaluation of data augamentation
+ 1. training data visualization
+ 2. evaluation of training data augamentation
  3. evaluation of the trained model
 '''
 
@@ -45,7 +45,7 @@ import pandas as pd
 import cv2
 import numpy as np
 
-data_dir = './data'
+data_dir = '/Users/rogerjiang/code/dstl_unet'
 
 CLASSES = {
     1: 'Bldg',
@@ -86,8 +86,8 @@ ZORDER = {
 
 
 
-_df = pd.read_csv(data_dir+'/train_wkt_v4.csv', names=['ImageId', 'ClassId', 'MultipolygonWKT'], skiprows=1)
-_df1 = pd.read_csv(data_dir+'/grid_sizes.csv', names=['ImageId', 'Xmax', 'Ymin'], skiprows=1)
+_df = pd.read_csv(data_dir+'/data/train_wkt_v4.csv', names=['ImageId', 'ClassId', 'MultipolygonWKT'], skiprows=1)
+_df1 = pd.read_csv(data_dir+'/data/grid_sizes.csv', names=['ImageId', 'Xmax', 'Ymin'], skiprows=1)
 #duplicates = ['6110_1_2', '6110_3_1']
 duplicates = []
 
@@ -100,14 +100,14 @@ image_IDs_dict = dict(zip(np.arange(all_train_names.size),all_train_names))
 
 
 
-def rescale(im, shape_out):
+def resize(im, shape_out):
     '''
     
     :param im: 
     :param shape_out: 
-    :return: rescaled image
+    :return: resized image
     '''
-    return cv2.resize(im, (shape_out[0], shape_out[1]), interpolation=cv2.INTER_CUBIC)
+    return cv2.resize(im, (shape_out[1], shape_out[0]), interpolation=cv2.INTER_CUBIC)
 
 
 
@@ -266,10 +266,10 @@ class ImageData():
         :return: 
         '''
         return {
-            '3': '{}/three_band/{}.tif'.format(data_dir, self.imageId),
-            'A': '{}/sixteen_band/{}_A.tif'.format(data_dir, self.imageId),
-            'M': '{}/sixteen_band/{}_M.tif'.format(data_dir, self.imageId),
-            'P': '{}/sixteen_band/{}_P.tif'.format(data_dir, self.imageId),
+            '3': '{}/data/three_band/{}.tif'.format(data_dir, self.imageId),
+            'A': '{}/data/sixteen_band/{}_A.tif'.format(data_dir, self.imageId),
+            'M': '{}/data/sixteen_band/{}_M.tif'.format(data_dir, self.imageId),
+            'P': '{}/data/sixteen_band/{}_P.tif'.format(data_dir, self.imageId),
         }
 
 
@@ -287,6 +287,16 @@ class ImageData():
                 images[key] = np.transpose(im, (1, 2, 0))
             elif key == 'P':
                 images[key] = im
+
+        im3 = images['3']
+        ima = images['A']
+        imm = images['M']
+
+        [nx, ny, _] = im3.shape
+
+        images['A'] = resize(ima, [nx, ny])
+        images['M'] = resize(imm, [nx, ny])
+
         return images
 
 
@@ -305,11 +315,8 @@ class ImageData():
 
         [nx, ny, _] = im3.shape
 
-        ima = rescale(ima, [nx, ny])
-        imm = rescale(imm, [nx, ny])
-
-        warp_matrix_a = np.load('utils/image_alignment/{}_warp_matrix_a.npz'.format(self.imageId))
-        warp_matrix_m = np.load('utils/image_alignment/{}_warp_matrix_m.npz'.format(self.imageId))
+        warp_matrix_a = np.load((data_dir+'/utils/image_alignment/{}_warp_matrix_a.npz').format(self.imageId))
+        warp_matrix_m = np.load((data_dir+'/utils/image_alignment/{}_warp_matrix_m.npz').format(self.imageId))
 
         ima = affine_transform(ima, warp_matrix_a, [nx, ny])
         imm = affine_transform(imm, warp_matrix_m, [nx, ny])
