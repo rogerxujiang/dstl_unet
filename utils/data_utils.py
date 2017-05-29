@@ -51,6 +51,7 @@ import random
 from matplotlib import cm
 from shapely import affinity
 import sys
+import seaborn as sns
 
 data_dir = '/Users/rogerjiang/code/dstl_unet'
 
@@ -379,8 +380,26 @@ def collect_stats():
 
 
 
-def plot_stats():
-    
+def plot_stats(value, title):
+    '''
+    plot statistics of all images for label 'values'
+    :param value: 
+    :param title: 
+    :return: 
+    '''
+    stats = collect_stats()
+    pvt = stats.pivot(index='CLASS', columns='ImageId', values=value)
+    pvt.fillna(0., inplace=True)
+    fig, ax = plt.subplots(figsize=(10, 4))
+    im = ax.imshow(pvt, interpolation='nearest', cmap=plt.cm.plasma, extent=[0, 25, 10, 0])
+    ax.set_xlabel('Image')
+    ax.set_ylabel('Class Type')
+    ax.set_xticks(np.arange(0.5, 25.4, 1))
+    ax.set_yticks(np.arange(0.5, 10.4 ,1))
+    ax.set_xticklabels(np.arange(1, 26))
+    ax.set_yticklabels(pvt.index)
+    ax.set_title(title)
+    fig.colorbar(im)
 
 
 
@@ -392,6 +411,32 @@ def rgb2gray(rgb):
     '''
     return np.dot(rgb[..., :3], [0.299, 0.587, 0.144])
 
+
+
+def plot_bar_stats():
+    '''
+    Plot the statistics on total area for images by class
+    :return: 
+    '''
+    stats = collect_stats()
+    pvt = stats.pivot(index='CLASS', columns='ImageId', values='totalArea')
+    percAreaCS = np.cumsum(pvt, axis=0)
+    CLASSES_r = {}
+    sns.set_style('white')
+    sns.set_context({'figure.figsize': (12,8)})
+
+    for cl in CLASSES: CLASSES_r[CLASSES[cl]] = cl
+
+    for cl in np.arange(1,11):
+        class_name = percAreaCS.index[-cl]
+        class_id = CLASSES_r[class_name]
+        ax = sns.barplot(x=percAreaCS.columns, y=percAreaCS.loc[class_name], color=COLORS[class_id], label=class_name)
+
+    ax.legend(loc=2)
+    sns.despine(left=True)
+    ax.set_xlabel('Image ID')
+    ax.set_ylabel('Class Type')
+    ax.set_xticklabels(percAreaCS.columns, rotation=-60)
 
 
 class ImageData():
