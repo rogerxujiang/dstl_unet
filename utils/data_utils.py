@@ -44,6 +44,13 @@ import shapely.wkt as wkt
 import pandas as pd
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
+from descartes.patch import PolygonPatch
+from matplotlib.patches import Patch
+import random
+from matplotlib import cm
+from shapely import affinity
+import sys
 
 data_dir = '/Users/rogerjiang/code/dstl_unet'
 
@@ -220,18 +227,170 @@ def generate_mask_from_contours(img_size, perim_list, inter_list, class_id=0):
 
 
 
+def plot_polygon(polygon_list, ax, scaler=None, alpha=0.7):
+
+    legend_list = []
+    for cl in CLASSES:
+        legend_list.append(Patch(color=COLORS[cl], label='{}: ({})'.format(CLASSES[cl], len(polygon_list[cl]))))
+        for polygon in polygon_list[cl]:
+            if scaler is not None:
+                polygon_rescale = affinity.scale(polygon, xfact=scaler[0], yfact=scaler[1], origin=[0.,0.,0.])
+            else:
+                polygon_rescale = polygon
+            patch = PolygonPatch(polygon=polygon_rescale, color=COLORS[cl], lw=0, alpha=alpha, zorder=ZORDER[cl])
+            ax.add_patch(patch)
+    ax.autoscale_view()
+    ax.set_title('Objects')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    return legend_list
+
+
+
+def plot_image(img, ax, image_id, image_key, selected_channel=None):
+    '''
+    Plot an image into axis ax with specific axis labels and titles
+    :param img: 
+    :param ax: 
+    :param image_id: 
+    :param image_key: 
+    :param selected_channel: 
+    :return: 
+    '''
+    title_suffix = ''
+    if selected_channel is not None:
+        img = img[:,:, selected_channel]
+        title_suffix = '('+','.join(repr(i) for i in selected_channel)+')'
+    ax.imshow(img)
+    ax.set_title(image_id+'-'+image_key+title_suffix)
+    ax.set_xlabel(img.shape[0])
+    ax.set_ylabel(img.shape[1])
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+
+
+def plot_overlay(img, ax, image_id, image_key, polygon_list, scaler=[1.,1.]):
+    ax.imshow(scale_percentile(rgb2gray(img)), cmap=cm.gray, vmax=1., vmin=0.)
+    ax.set_xlabel(img.shape[0])
+    ax.set_ylabel(img.shape[1])
+    plot_polygon(polygon_list, ax, scaler=scaler, alpha=0.8)
+    ax.set_title(image_id+'-'+image_key+'-Overlay')
+
+
+
+def scale_percentile(img):
+    '''
+    Scale an image's 1%-99% into 0.-1.
+    :param img: 
+    :return: 
+    '''
+    orig_shape = img.shape
+    if len(orig_shape) == 3:
+        img = np.reshape(img, [orig_shape[0]*orig_shape[1], orig_shape[2]]).astype(np.float32)
+    elif len(orig_shape) == 2:
+        img = np.reshape(img, [orig_shape[0] * orig_shape[1]]).astype(np.float32)
+    mins = np.percentile(img, 1, axis=0)
+    maxs = np.percentile(img, 99, axis=0) - mins
+
+    img = (img - mins)/maxs
+
+    img.clip(0.,1.)
+    img = np.reshape(img, orig_shape)
+
+    return img
+
+
+
 def rotate():
     return 0
 
 
 
-def crop():
-    return 0
+def crop(img, crop_area):
+    '''
+    Crop out and return an area from an image.
+    :param img: 
+    :param crop_area: 
+    :return: 
+    '''
+    width, height = img.shape[0], img.shape[1]
+    x_lim = crop_area[0].astype(np.int)
+    y_lim = crop_area[1].astype(np.int)
+
+    assert x_lim[0] >= 0 and x_lim[1] > x_lim[0]
+    assert x_lim[1] <= width
+    assert y_lim[0] >= 0 and y_lim[1] > y_lim[0]
+    assert y_lim[1] <= height
+
+    return img[x_lim[0]:x_lim[1], y_lim[0]:y_lim[1]]
+
+
+def get_image_area(image_id):
+    '''
+    returns the area of an image
+    :param image_id: 
+    :return: 
+    '''
+    xmax = grid_sizes[grid_sizes.ImageId == image_id].Xmax.values[0]
+    ymin = grid_sizes[grid_sizes.ImageId == image_id].Ymin.values[0]
+
+    return np.abs(xmax * ymin)
+# 1. histogram for each class across training examples
+# 2. percentage of pixels for a certain class, averaged over all images
+# 3.
+def image_stat(image_id):
+    '''
+    returns the statistics of an image as a pandas dataframe
+    :param image_id: 
+    :return: 
+    '''
+    counts, totalArea, meanArea, stdArea = {}, {}, {}, {}
+    image_area = get_image_area(image_id)
+
+    for cl in CLASSES:
+        polygon_list = get_polygon_list(image_id, cl)
+        counts[cl] = len(polygon_list)
+        if len(polygon_list) > 0:
+            totalArea[cl] = np.sum([poly.area for poly in polygon_list]) / image_area * 100.
+            meanArea[cl] = np.mean([poly.area for poly in polygon_list]) / image_area * 100.
+            stdArea[cl] = np.std([poly.area for poly in polygon_list]) / image_area * 100.
+
+
+    return pd.DataFrame({'CLASS': CLASSES, 'counts': counts, 'totalArea': totalArea, 'meanArea': meanArea, 'stdArea': stdArea})
 
 
 
-def class_label_stat():
-    return 0
+def collect_stats():
+    '''
+    create the statistics of all images
+    :return: 
+    '''
+    stats = []
+    for image_no, image_id in enumerate(all_train_names):
+        print 'Working on image No. {}: {} \n'.format(image_no, image_id)
+        stat = image_stat(image_id)
+        stat['ImageId'] = image_id
+        stats.append(stat)
+        print 'prepare image patches [                    ]',
+        print '\b' * 22,
+        sys.stdout.flush()
+    return pd.concat(stats)
+
+
+
+def plot_stats():
+    
+
+
+
+def rgb2gray(rgb):
+    '''
+    convert rgb image to grey scale
+    :param rgb: 
+    :return: 
+    '''
+    return np.dot(rgb[..., :3], [0.299, 0.587, 0.144])
 
 
 
@@ -240,12 +399,14 @@ class ImageData():
     def __init__(self, image_id):
 
         self.imageId = image_IDs_dict[image_id]
+        self.stat = image_stat(self.imageId)
         self.three_band_image = None
         self.sixteen_band_image = None
         self.image = None
         self.image_size = None
         self._xymax = None
         self.label = None
+        self.crop_image = None
 
 
     def load_image(self):
@@ -330,10 +491,245 @@ class ImageData():
 
         if self.image is None:
             self.load_image()
-        labels = np.zeros(self.image_size, np.uint8)
+        labels = np.zeros(np.append(self.image_size, len(CLASSES)), np.uint8)
         for cl in CLASSES:
             polygon_list = get_polygon_list(self.imageId, cl)
             perim_list, inter_list = genetate_contours(polygon_list, self.image_size, self._xymax)
             mask = generate_mask_from_contours(self.image_size, perim_list, inter_list, cl)
-            labels += mask
+            labels[:, :, cl-1]= mask
         self.label = labels
+
+
+    def visualize_images(self, plot_all=True):
+
+        if self.label is None:
+            self.create_label()
+
+        if plot_all is False:
+            fig, axarr = plt.subplots(figsize=[10,10])
+            ax = axarr
+        elif plot_all is True:
+            fig, axarr = plt.subplots(figsize=[20, 20], ncols=3, nrows=3)
+            ax = axarr[0][0]
+
+        polygon_list = {}
+        for cl in CLASSES:
+            polygon_list[cl] = get_polygon_list(self.imageId, cl)
+        for cl in CLASSES:
+            print '{}: {} \tcount = {}'.format(cl, CLASSES[cl], len(polygon_list[cl]))
+
+        legend = plot_polygon(polygon_list=polygon_list, ax=ax)
+
+        ax.set_xlim(0, self._xymax[0])
+        ax.set_ylim(self._xymax[1], 0)
+        ax.set_xlabel(self.image_size[0])
+        ax.set_ylabel(self.image_size[1])
+
+        if plot_all is True:
+            three_band_rescale = scale_percentile(self.three_band_image)
+            sixteen_band_rescale = scale_percentile(self.sixteen_band_image)
+            plot_image(three_band_rescale, axarr[0][1], self.imageId, '3')
+            plot_overlay(three_band_rescale, axarr[0][2], self.imageId, '3', polygon_list, scaler=self.image_size/np.array([-self._xymax[1], -self._xymax[0]]))
+            axarr[0][2].set_ylim(self.image_size[0], 0)
+            axarr[0][2].set_xlim(0, self.image_size[1])
+            plot_image(sixteen_band_rescale, axarr[1][0], self.imageId, 'A', selected_channel=[0, 3, 6])
+            plot_image(sixteen_band_rescale, axarr[1][1], self.imageId, 'A', selected_channel=[1, 4, 7])
+            plot_image(sixteen_band_rescale, axarr[1][2], self.imageId, 'A', selected_channel=[2, 5, 0])
+            plot_image(sixteen_band_rescale, axarr[2][0], self.imageId, 'M', selected_channel=[8, 11, 14])
+            plot_image(sixteen_band_rescale, axarr[2][1], self.imageId, 'M', selected_channel=[9, 12, 15])
+            plot_image(sixteen_band_rescale, axarr[2][2], self.imageId, 'M', selected_channel=[10, 13, 8])
+
+        ax.legend(handles=legend,
+                  bbox_to_anchor=(0.9, 0.95),
+                  bbox_transform=plt.gcf().transFigure,
+                  ncol=5,
+                  fontsize='large',
+                  title='Objects-'+self.imageId,
+                  framealpha=0.3)
+
+
+    def apply_crop(self, patch_size, ref_point=[0,0],  method='random'):
+
+        if self.image is None:
+            self.load_image()
+
+        crop_area = np.zeros([2,2])
+        width = self.image_size[0]
+        height = self.image_size[1]
+
+        assert patch_size > 0
+        assert patch_size <= width and patch_size <= height
+
+        if method == 'random':
+            ref_point[0] = random.randint(0, width - patch_size)
+            ref_point[1] = random.randint(0, height - patch_size)
+            crop_area[0][0] = ref_point[0]
+            crop_area[1][0] = ref_point[1]
+            crop_area[0][1] = ref_point[0] + patch_size
+            crop_area[1][1] = ref_point[1] + patch_size
+        elif method == 'grid':
+            assert width > ref_point[0] + patch_size
+            assert  height > ref_point[1] + patch_size
+            crop_area[0][0] = ref_point[0]
+            crop_area[1][0] = ref_point[1]
+            crop_area[0][1] = ref_point[0] + patch_size
+            crop_area[1][1] = ref_point[1] + patch_size
+        else:
+            raise NotImplementedError('"method" should either be "random" or "grid"')
+        self.crop_image = crop(self.image, crop_area)
+
+
+
+'''
+Some nice code:
+
+https://www.kaggle.com/drn01z3/end-to-end-baseline-with-u-net-keras
+
+def mask_for_polygons(polygons, im_size):
+    # __author__ = Konstantin Lopuhin
+    # https://www.kaggle.com/lopuhin/dstl-satellite-imagery-feature-detection/full-pipeline-demo-poly-pixels-ml-poly
+    img_mask = np.zeros(im_size, np.uint8)
+    if not polygons:
+        return img_mask
+    int_coords = lambda x: np.array(x).round().astype(np.int32)
+    exteriors = [int_coords(poly.exterior.coords) for poly in polygons]
+    interiors = [int_coords(pi.coords) for poly in polygons
+                 for pi in poly.interiors]
+    cv2.fillPoly(img_mask, exteriors, 1)
+    cv2.fillPoly(img_mask, interiors, 0)
+    return img_mask
+    
+def mask_to_polygons(mask, epsilon=5, min_area=1.):
+    # __author__ = Konstantin Lopuhin
+    # https://www.kaggle.com/lopuhin/dstl-satellite-imagery-feature-detection/full-pipeline-demo-poly-pixels-ml-poly
+
+    # first, find contours with cv2: it's much faster than shapely
+    image, contours, hierarchy = cv2.findContours(
+        ((mask == 1) * 255).astype(np.uint8),
+        cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_KCOS)
+    # create approximate contours to have reasonable submission size
+    approx_contours = [cv2.approxPolyDP(cnt, epsilon, True)
+                       for cnt in contours]
+    if not contours:
+        return MultiPolygon()
+    # now messy stuff to associate parent and child contours
+    cnt_children = defaultdict(list)
+    child_contours = set()
+    assert hierarchy.shape[0] == 1
+    # http://docs.opencv.org/3.1.0/d9/d8b/tutorial_py_contours_hierarchy.html
+    for idx, (_, _, _, parent_idx) in enumerate(hierarchy[0]):
+        if parent_idx != -1:
+            child_contours.add(idx)
+            cnt_children[parent_idx].append(approx_contours[idx])
+    # create actual polygons filtering by area (removes artifacts)
+    all_polygons = []
+    for idx, cnt in enumerate(approx_contours):
+        if idx not in child_contours and cv2.contourArea(cnt) >= min_area:
+            assert cnt.shape[1] == 1
+            poly = Polygon(
+                shell=cnt[:, 0, :],
+                holes=[c[:, 0, :] for c in cnt_children.get(idx, [])
+                       if cv2.contourArea(c) >= min_area])
+            all_polygons.append(poly)
+    # approximating polygons might have created invalid ones, fix them
+    all_polygons = MultiPolygon(all_polygons)
+    if not all_polygons.is_valid:
+        all_polygons = all_polygons.buffer(0)
+        # Sometimes buffer() converts a simple Multipolygon to just a Polygon,
+        # need to keep it a Multi throughout
+        if all_polygons.type == 'Polygon':
+            all_polygons = MultiPolygon([all_polygons])
+    return all_polygons
+
+def make_submit():
+    print "make submission file"
+    df = pd.read_csv(os.path.join(inDir, 'sample_submission.csv'))
+    print df.head()
+    for idx, row in df.iterrows():
+        id = row[0]
+        kls = row[1] - 1
+
+        msk = np.load('msk/10_%s.npy' % id)[kls]
+        pred_polygons = mask_to_polygons(msk)
+        x_max = GS.loc[GS['ImageId'] == id, 'Xmax'].as_matrix()[0]
+        y_min = GS.loc[GS['ImageId'] == id, 'Ymin'].as_matrix()[0]
+
+        x_scaler, y_scaler = get_scalers(msk.shape, x_max, y_min)
+
+        scaled_pred_polygons = shapely.affinity.scale(pred_polygons, xfact=1.0 / x_scaler, yfact=1.0 / y_scaler,
+                                                      origin=(0, 0, 0))
+
+        df.iloc[idx, 2] = shapely.wkt.dumps(scaled_pred_polygons)
+        if idx % 100 == 0: print idx
+    print df.head()
+    df.to_csv('subm/1.csv', index=False)
+    
+    
+https://www.kaggle.com/lopuhin/full-pipeline-demo-poly-pixels-ml-poly
+
+dumped_prediction = shapely.wkt.dumps(scaled_pred_polygons)
+print('Prediction size: {:,} bytes'.format(len(dumped_prediction)))
+final_polygons = shapely.wkt.loads(dumped_prediction)
+print('Final jaccard',
+      final_polygons.intersection(train_polygons).area /
+      final_polygons.union(train_polygons).area)
+
+
+
+from shapely.geometry import MultiPolygon, Polygon
+from collections import defaultdict
+def mask_to_polygons(mask, epsilon=10., min_area=10.):
+    # first, find contours with cv2: it's much faster than shapely
+    image, contours, hierarchy = cv2.findContours(
+        ((mask == 1) * 255).astype(np.uint8),
+        cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_KCOS)
+    # create approximate contours to have reasonable submission size
+    approx_contours = [cv2.approxPolyDP(cnt, epsilon, True)
+                       for cnt in contours]
+    if not contours:
+        return MultiPolygon()
+    # now messy stuff to associate parent and child contours
+    cnt_children = defaultdict(list)
+    child_contours = set()
+    assert hierarchy.shape[0] == 1
+    # http://docs.opencv.org/3.1.0/d9/d8b/tutorial_py_contours_hierarchy.html
+    for idx, (_, _, _, parent_idx) in enumerate(hierarchy[0]):
+        if parent_idx != -1:
+            child_contours.add(idx)
+            cnt_children[parent_idx].append(approx_contours[idx])
+    # create actual polygons filtering by area (removes artifacts)
+    all_polygons = []
+    for idx, cnt in enumerate(approx_contours):
+        if idx not in child_contours and cv2.contourArea(cnt) >= min_area:
+            assert cnt.shape[1] == 1
+            poly = Polygon(
+                shell=cnt[:, 0, :],
+                holes=[c[:, 0, :] for c in cnt_children.get(idx, [])
+                       if cv2.contourArea(c) >= min_area])
+            all_polygons.append(poly)
+    # approximating polygons might have created invalid ones, fix them
+    all_polygons = MultiPolygon(all_polygons)
+    if not all_polygons.is_valid:
+        all_polygons = all_polygons.buffer(0)
+        # Sometimes buffer() converts a simple Multipolygon to just a Polygon,
+        # need to keep it a Multi throughout
+        if all_polygons.type == 'Polygon':
+            all_polygons = MultiPolygon([all_polygons])
+    return all_polygons
+
+
+'''
+
+'''
+https://www.kaggle.com/resolut/waterway-0-095-lb
+this  index can be used to classify water
+def CCCI_index(m, rgb):
+    RE  = resize(m[5,:,:], (rgb.shape[0], rgb.shape[1]))
+    MIR = resize(m[7,:,:], (rgb.shape[0], rgb.shape[1]))
+    R = rgb[:,:,0]
+    # canopy chloropyll content index
+    CCCI = (MIR-RE)/(MIR+RE)*(MIR-R)/(MIR+R)
+    return CCCI
+# The following is almost enough for classifying water
+binary = (CCCI > 0.11).astype(np.float32)
+'''
