@@ -37,6 +37,22 @@ MultipolygonWKT is relative position in the figure and can be converted to pixel
 There is slightly mismatch between the three_band and sixteen_band data, such that they should be aligned.
 
 '''
+'''
+class blance
+oversample on rare classes
+In terms of cross validation, I used a random patch split of 10-20% across images (depending on class, the rarer the larger).
+
+Optimization wise I used the Jaccard loss directly with Adam as optimizer (I did not get much improvement from NAdam).
+I also had a learning rate policy step which dropped the learning rate at around 0.2 of the initial rate for every 30 epochs.
+
+Ensembling involved the use of mask arithmetic averaging (most classes),
+unions (only on standing water and large vehicles), intersections (only on waterways using NDWI and CCCI).
+using rasterio/shapely to perform polygon to WKT conversion.
+
+
+We used Nadam Optimizer (Adam with Nesterov momentum) and trained the network for 50 epochs with a learning rate of 1e-3 and additional 50 epochs with a learning rate of 1e-4. Each epoch was trained on 400 batches, each batch containing 128 image patches. Each batch was created randomly cropping 112x112 patches from original images. In addition each patch was modified by applying a random transformation from group D4.
+
+'''
 
 
 import tifffile
@@ -102,9 +118,9 @@ duplicates = []
 train_wkt_v4 = _df[np.invert(np.in1d(_df.ImageId, duplicates))]
 grid_sizes = _df1[np.invert(np.in1d(_df1.ImageId, duplicates))]
 
-all_train_names = train_wkt_v4.ImageId.unique()
+all_train_names = sorted(train_wkt_v4.ImageId.unique())
 
-image_IDs_dict = dict(zip(np.arange(all_train_names.size),all_train_names))
+image_IDs_dict = dict(zip(np.arange(np.array(all_train_names).size),all_train_names))
 
 
 
@@ -187,15 +203,15 @@ def genetate_contours(polygonlist, img_size, xymax):
     :param xymax: 
     :return: 
     '''
-    perim_list = []
-    inter_list = []
+    # perim_list = []
+    # inter_list = []
 
     if polygonlist is None:
         return None
 
     to_ind = lambda x: np.array(list(x)).astype(np.float32)
 
-    perim_list = [convert_coordinate_to_raster(to_ind(poly.coords), img_size, xymax) for poly in polygonlist]
+    perim_list = [convert_coordinate_to_raster(to_ind(poly.exterior.coords), img_size, xymax) for poly in polygonlist]
 
     inter_list = [convert_coordinate_to_raster(to_ind(poly.coords), img_size, xymax)
                   for poly_ex in polygonlist for poly in poly_ex.interiors]
@@ -216,7 +232,7 @@ def genetate_contours(polygonlist, img_size, xymax):
 
 
 
-def generate_mask_from_contours(img_size, perim_list, inter_list, class_id=0):
+def generate_mask_from_contours(img_size, perim_list, inter_list, class_id=1):
     '''
     Create mask for a specific class
     :param img_size: 
@@ -461,7 +477,7 @@ class ImageData():
         self._xymax = None
         self.label = None
         self.crop_image = None
-        self.CCCI = None
+        self.train_feature = None
 
 
     def load_image(self):
@@ -499,7 +515,6 @@ class ImageData():
         for key in path:
             im = tifffile.imread(path[key])
             if key != 'P':
-                print
                 images[key] = np.transpose(im, (1, 2, 0))
             elif key == 'P':
                 images[key] = im
@@ -507,11 +522,13 @@ class ImageData():
         im3 = images['3']
         ima = images['A']
         imm = images['M']
+        imp = images['P']
 
         [nx, ny, _] = im3.shape
 
         images['A'] = resize(ima, [nx, ny])
         images['M'] = resize(imm, [nx, ny])
+        images['P'] = resize(imp, [nx, ny])
 
         return images
 
@@ -528,6 +545,9 @@ class ImageData():
         im3 = images['3']
         ima = images['A']
         imm = images['M']
+        imp = images['P']
+
+        imp = np.expand_dims(imp, 2)
 
         [nx, ny, _] = im3.shape
 
@@ -537,7 +557,8 @@ class ImageData():
         ima = affine_transform(ima, warp_matrix_a, [nx, ny])
         imm = affine_transform(imm, warp_matrix_m, [nx, ny])
 
-        im = np.concatenate((im3, ima, imm), axis=-1)
+        # print im3.shape, ima.shape, imm.shape, imp.shape
+        im = np.concatenate((im3, ima, imm, imp), axis=-1)
 
         return im
 
@@ -550,22 +571,46 @@ class ImageData():
         for cl in CLASSES:
             polygon_list = get_polygon_list(self.imageId, cl)
             perim_list, inter_list = genetate_contours(polygon_list, self.image_size, self._xymax)
-            mask = generate_mask_from_contours(self.image_size, perim_list, inter_list, cl)
+            mask = generate_mask_from_contours(self.image_size, perim_list, inter_list, class_id=1)
             labels[:, :, cl-1]= mask
         self.label = labels
 
 
-    def create_CCCI(self):
+    def create_train_feature(self):
         if self.three_band_image is None:
             self.load_image()
-        m = self.sixteen_band_image[:, :, 8:]
-        rgb = self.three_band_image
-        RE = resize(m[5, :, :], (rgb.shape[0], rgb.shape[1]))
-        MIR = resize(m[7, :, :], (rgb.shape[0], rgb.shape[1]))
-        R = rgb[:, :, 0]
-        # canopy chloropyll content index
-        # binary = (CCCI > 0.11).astype(np.float32) marks water fairly well
-        self.CCCI = (MIR - RE) / (MIR + RE) * (MIR - R) / (MIR + R)
+
+        m = self.sixteen_band_image[:, :, 8:].astype(np.float32)
+        rgb = self.three_band_image.astype(np.float32)
+        image_r = rgb[:, :, 0]
+        image_g = rgb[:, :, 1]
+        image_b = rgb[:, :, 2]
+        nir = m[:, :, 7]
+        re = m[:, :, 5]
+
+        L = 1.0
+        C1 = 6.0
+        C2 = 7.5
+
+        evi = (nir - image_r) / (nir + C1 * image_r - C2 * image_b + L)
+        evi = np.expand_dims(evi, 2)
+
+        ndwi = (image_g - nir) / (image_g + nir)
+        ndwi = np.expand_dims(ndwi, 2)
+
+        savi = (nir - image_r) / (image_r + nir)
+        savi = np.expand_dims(savi, 2)
+
+        ccci = (nir - re) / (nir + re) * (nir - image_r) / (nir + image_r)
+        ccci = np.expand_dims(ccci, 2)
+
+        # binary = (ccci > 0.11).astype(np.float32) marks water fairly well
+        # print m.shape, rgb.shape, evi.shape, ndwi.shape, savi.shape, ccci.shape
+        feature = np.concatenate([m, rgb, evi, ndwi, savi, ccci], 2)
+        feature[feature == np.inf] = 0
+        feature[feature == -np.inf] = 0
+
+        self.train_feature = feature
 
 
     def visualize_images(self, plot_all=True):
@@ -648,13 +693,35 @@ class ImageData():
 
 
 
+def jaccard_index(mask_1, mask_2):
+    '''
+    calculate the jaccard index between two masks
+    :param mask_1: 
+    :param mask_2: 
+    :return: 
+    '''
+    assert len(mask_1.shape) == 2
+    assert len(mask_2.shape) == 2
+    assert np.amax(mask_1) <= 1
+    assert np.amax(mask_2) <= 1
+
+    intersection = np.sum(mask_1.astype(np.float32) * mask_2.astype(np.float32))
+    union = np.sum(mask_1.astype(np.float32)) + np.sum(mask_2.astype(np.float32)) - intersection
+    if union == 0:
+        return 0.
+    jaccard =intersection / union
+    return jaccard
 '''
 Some nice code:
 
 https://www.kaggle.com/drn01z3/end-to-end-baseline-with-u-net-keras
-
+'''
 from shapely.geometry import MultiPolygon, Polygon
 from collections import defaultdict
+import shapely
+import os
+
+
 
 def mask_to_polygons(mask, epsilon=5, min_area=1.):
     # __author__ = Konstantin Lopuhin
@@ -698,14 +765,18 @@ def mask_to_polygons(mask, epsilon=5, min_area=1.):
             all_polygons = MultiPolygon([all_polygons])
     return all_polygons
 
-def make_submit():
+
+'''
+def make_submit(msk=None):
+
     print "make submission file"
-    df = pd.read_csv(os.path.join(inDir, 'sample_submission.csv'))
+    df = pd.read_csv(os.path.join('../data', 'sample_submission.csv'))
     print df.head()
     for idx, row in df.iterrows():
         id = row[0]
         kls = row[1] - 1
 
+        GS = grid_sizes
         msk = np.load('msk/10_%s.npy' % id)[kls]
         pred_polygons = mask_to_polygons(msk)
         x_max = GS.loc[GS['ImageId'] == id, 'Xmax'].as_matrix()[0]
@@ -720,8 +791,10 @@ def make_submit():
         if idx % 100 == 0: print idx
     print df.head()
     df.to_csv('subm/1.csv', index=False)
-    
-    
+'''
+
+
+'''
 https://www.kaggle.com/lopuhin/full-pipeline-demo-poly-pixels-ml-poly
 
 dumped_prediction = shapely.wkt.dumps(scaled_pred_polygons)
@@ -731,10 +804,4 @@ print('Final jaccard',
       final_polygons.intersection(train_polygons).area /
       final_polygons.union(train_polygons).area)
 
-
-
-
-
-https://www.kaggle.com/aamaia/large-vehicles
-crop out all vehicles
 '''
