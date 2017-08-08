@@ -254,19 +254,24 @@ def plot_polygon(polygon_list, ax, scaler = None, alpha = 0.7):
     legend_list = []
     for cl in CLASSES:
         # Patch is a function in the matplotlib.patches module
-        legend_list.append(Patch(color = COLORS[cl], label = '{}: ({})'.format(CLASSES[cl], len(polygon_list[cl]))))
+        legend_list.append(Patch(
+            color = COLORS[cl],
+            label = '{}: ({})'.format(CLASSES[cl], len(polygon_list[cl]))))
 
         for polygon in polygon_list[cl]:
             if scaler is not None:
                 # affinity is a function from shapely
-                polygon_rescale = affinity.scale(polygon, xfact = scaler[1], yfact = scaler[0], origin = [0., 0., 0.])
+                polygon_rescale = affinity.scale(polygon, xfact = scaler[1],
+                                                 yfact = scaler[0],
+                                                 origin = [0., 0., 0.])
             else:
                 polygon_rescale = polygon
             # PolygonPatch is a function from descartes.patch module
             # polygon_list is in relative coordinates and they are
             # generated from get_polygon_list and are further
             # converted to raster coordinates through scaler.
-            patch = PolygonPatch(polygon = polygon_rescale, color = COLORS[cl], lw = 0, alpha = alpha, zorder = ZORDER[cl])
+            patch = PolygonPatch(polygon = polygon_rescale, color = COLORS[cl],
+                                 lw = 0, alpha = alpha, zorder = ZORDER[cl])
             ax.add_patch(patch)
     ax.autoscale_view()
     ax.set_title('Objects')
@@ -300,7 +305,8 @@ def plot_image(img, ax, image_id, image_key, selected_channel = None):
 
 
 def plot_overlay(img, ax, image_id, image_key, polygon_list, scaler = [1., 1.],
-                 x_range = None, y_range = None, label = None, alpha = 1.0, rgb = False):
+                 x_range = None, y_range = None, label = None, alpha = 1.0,
+                 rgb = False):
     '''
     Plot image with polygon overlays
     :param img:
@@ -408,9 +414,12 @@ def image_stat(image_id):
         polygon_list = get_polygon_list(image_id, cl)
         counts[cl] = len(polygon_list)
         if len(polygon_list) > 0:
-            total_area[cl] = np.sum([poly.area for poly in polygon_list]) / img_area * 100.
-            mean_area[cl] = np.mean([poly.area for poly in polygon_list]) / img_area * 100.
-            std_area[cl] = np.std([poly.area for poly in polygon_list]) / img_area * 100.
+            total_area[cl] = np.sum([poly.area for poly in polygon_list])\
+                             / img_area * 100.
+            mean_area[cl] = np.mean([poly.area for poly in polygon_list])\
+                            / img_area * 100.
+            std_area[cl] = np.std([poly.area for poly in polygon_list])\
+                           / img_area * 100.
 
     return pd.DataFrame({'Class': CLASSES, 'Counts': counts, 'TotalArea': total_area,
                          'MeanArea': mean_area, 'STDArea': std_area})
@@ -429,7 +438,8 @@ def collect_stats():
         stat = image_stat(image_id)
         stat['ImageId'] = image_id
         stats.append(stat)
-        sys.stdout.write('\r[{}{}] {}%'.format('=' * image_no, ' ' * (total_no - image_no),
+        sys.stdout.write('\r[{}{}] {}%'.format('=' * image_no,
+                                               ' ' * (total_no - image_no),
                                                100 * image_no / total_no))
         sys.stdout.flush()
     sys.stdout.write('\n')
@@ -688,15 +698,22 @@ class ImageData():
             plot_image(three_band_rescale, axarr[0][1], self.image_id, '3')
             plot_overlay(three_band_rescale, axarr[0][2], self.image_id, '3',
                          polygon_list,
-                         scaler = self.image_size / np.array([self._xymax[1], self._xymax[0]]))
+                         scaler = self.image_size / np.array([self._xymax[1],
+                                                              self._xymax[0]]))
             axarr[0][2].set_ylim(self.image_size[0], 0)
             axarr[0][2].set_xlim(0, self.image_size[1])
-            plot_image(sixteen_band_rescale, axarr[1][0], self.image_id, 'A', selected_channel = [0, 3, 6])
-            plot_image(sixteen_band_rescale, axarr[1][1], self.image_id, 'A', selected_channel = [1, 4, 7])
-            plot_image(sixteen_band_rescale, axarr[1][2], self.image_id, 'A', selected_channel = [2, 5, 0])
-            plot_image(sixteen_band_rescale, axarr[2][0], self.image_id, 'M', selected_channel = [8, 11, 14])
-            plot_image(sixteen_band_rescale, axarr[2][1], self.image_id, 'M', selected_channel = [9, 12, 15])
-            plot_image(sixteen_band_rescale, axarr[2][2], self.image_id, 'M', selected_channel = [10, 13, 8])
+            plot_image(sixteen_band_rescale, axarr[1][0], self.image_id, 'A',
+                       selected_channel = [0, 3, 6])
+            plot_image(sixteen_band_rescale, axarr[1][1], self.image_id, 'A',
+                       selected_channel = [1, 4, 7])
+            plot_image(sixteen_band_rescale, axarr[1][2], self.image_id, 'A',
+                       selected_channel = [2, 5, 0])
+            plot_image(sixteen_band_rescale, axarr[2][0], self.image_id, 'M',
+                       selected_channel = [8, 11, 14])
+            plot_image(sixteen_band_rescale, axarr[2][1], self.image_id, 'M',
+                       selected_channel = [9, 12, 15])
+            plot_image(sixteen_band_rescale, axarr[2][2], self.image_id, 'M',
+                       selected_channel = [10, 13, 8])
 
         ax.legend(handles = legend,
                   bbox_to_anchor = (0.9, 0.95),

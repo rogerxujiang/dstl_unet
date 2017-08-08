@@ -87,7 +87,7 @@ def get_all_data(train = True):
     image_label = []
     img_ids = train_ids if train else test_ids
     no_img = no_train_img if train else no_test_img
-
+    phase = ['validation', 'training'][train]
     for i in xrange(len(img_ids)):
         id = img_ids[i]
         image_data = data_utils.ImageData(id)
@@ -97,8 +97,9 @@ def get_all_data(train = True):
         image_feature.append(image_data.train_feature[: x_crop, : y_crop, :])
         image_label.append(image_data.label[: x_crop, : y_crop, :])
 
-        sys.stdout.write('\r[{}{}] {}%'.\
-                         format('=' * i,
+        sys.stdout.write('\rLoading {} data: [{}{}] {}%'.\
+                         format(phase,
+                                '=' * i,
                                 ' ' * (no_img - i - 1),
                                 100 * i / (no_img - 1)))
         sys.stdout.flush()
@@ -106,11 +107,11 @@ def get_all_data(train = True):
     image_feature = np.stack(image_feature, -1)
     image_label = np.stack(image_label, -1)
 
-    return image_feature, image_label
+    return np.rollaxis(image_feature, 3, 0), np.rollaxis(image_label, 3, 0)
 
 
 def input_data(crop_size, class_id = 0, crop_per_img = 1,
-               reflection = True, rotation = 8, train = True):
+               reflection = True, rotation = 8, train = True, verbose = False):
     '''
     Returns the training images (feature) and the corresponding labels
     :param crop_size:
@@ -141,9 +142,9 @@ def input_data(crop_size, class_id = 0, crop_per_img = 1,
         else:
             angle = 360. * np.random.randint(0, rotation) / rotation
             radian = 2. * np.pi * angle / 360.
-
-            print 'Rotation angle : {0}(degree), {1: 0.2f}(radian)'.\
-                format(int(angle), radian)
+            if verbose:
+                print 'Rotation angle : {0}(degree), {1: 0.2f}(radian)'.\
+                    format(int(angle), radian)
 
             crop_size_new = int(
                 np.ceil(float(crop_size) * (abs(np.sin(radian)) +
@@ -161,16 +162,14 @@ def input_data(crop_size, class_id = 0, crop_per_img = 1,
 
                 x_base = np.random.randint(0, x_crop - crop_size_new)
                 y_base = np.random.randint(0, y_crop - crop_size_new)
+                if verbose:
+                    print 'x_base {} for No. {} image'.format(x_base, id)
+                    print 'y_base {} for No. {} image'.format(y_base, id)
 
-                print 'x_base {} for No. {} image'.format(x_base, id)
-                print 'y_base {} for No. {} image'.format(y_base, id)
-
-                img_crop = image_feature[x_base: x_base + crop_size_new,
-                           y_base: y_base + crop_size_new, :, i]
-                label_crop = np.squeeze(image_label[
-                                        x_base: x_base + crop_size_new,
-                                        y_base: y_base + crop_size_new,
-                                        class_id, i])
+                img_crop = np.squeeze(image_feature[i, x_base: x_base + crop_size_new,
+                           y_base: y_base + crop_size_new, :])
+                label_crop = np.squeeze(image_label[i, x_base: x_base + crop_size_new,
+                                        y_base: y_base + crop_size_new, class_id])
                 if not rotation or rotation == 1:
                     img_rot = img_crop
                     label_rot = label_crop
@@ -192,7 +191,7 @@ def input_data(crop_size, class_id = 0, crop_per_img = 1,
                               crop_diff: crop_diff + crop_size]\
                                   [:: x_step, :: y_step])
 
-        yield np.stack(images, -1), np.stack(labels, -1)
+        yield np.stack(images, 0), np.stack(labels, 0)
 
 
 def jaccard_index(mask_1, mask_2):

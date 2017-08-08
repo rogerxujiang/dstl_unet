@@ -1,9 +1,20 @@
 {
-    "im_width" : 572,
-    "im_height" : 572,
-    "num_channel": 19,
-    "num_class": 11,
-    "queue_size" : 20,
-    "batch_size" : 2,
-    "padding": "SAME"
+    "im_width" : 432,
+    "im_height" : 432,
+    "start_ind" : 92,
+    "valid_size" : 248,
+    "num_channel": 16,
+    "num_class": 2,
+    "queue_size" : 100,
+    "batch_size" : 5,
+    "log_dir" : "log_dir/summary",
+    "padding": "SAME",
+    "loss_function" : "cross_entropy",
+    "save_iter": 100,
+    "print_iter": 10,
+    "norm_threshold": 1.0,
+    "class_type" : 0,
+    "train_iter": 10000,
+    "lr" : 0.01,
+    "lr_decay_iter" : 2000
 }
