@@ -7,7 +7,7 @@
     "num_class": 2,
     "queue_size" : 100,
     "batch_size" : 5,
-    "log_dir" : "log_dir/summary",
+    "log_dir" : "log_dir",
     "padding": "SAME",
     "loss_function" : "cross_entropy",
     "save_iter": 100,
