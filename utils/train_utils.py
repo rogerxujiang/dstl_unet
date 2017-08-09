@@ -68,7 +68,8 @@ x_crop = 3345
 y_crop = 3338
 
 test_names = ['6110_1_2', '6110_3_1']
-train_names = list(set(data_utils.all_train_names) - set(test_names))
+train_names = ['6110_1_2', '6110_3_1']
+# train_names = list(set(data_utils.all_train_names) - set(test_names))
 test_ids = [data_utils.image_IDs_dict_r[name] for name in test_names]
 train_ids = [data_utils.image_IDs_dict_r[name] for name in train_names]
 

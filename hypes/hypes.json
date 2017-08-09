@@ -5,7 +5,7 @@
     "valid_size" : 248,
     "num_channel": 16,
     "num_class": 2,
-    "queue_size" : 100,
+    "queue_size" : 40,
     "batch_size" : 5,
     "log_dir" : "log_dir",
     "padding": "SAME",
