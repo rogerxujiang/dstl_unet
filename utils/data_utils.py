@@ -60,7 +60,7 @@ import sys
 import seaborn as sns
 
 
-data_dir = '/Users/rogerjiang/code/dstl_unet'
+data_dir = '/home/ubuntu/dstl_unet'
 
 CLASSES = {
     1: 'Bldg',

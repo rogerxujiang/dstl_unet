@@ -44,7 +44,7 @@ from collections import defaultdict
 from shapely.affinity import scale
 import shapely.wkt as wkt
 
-data_dir = '/Users/rogerjiang/code/dstl_unet'
+data_dir = '/home/ubuntu/dstl_unet'
 
 
 CLASSES = {
