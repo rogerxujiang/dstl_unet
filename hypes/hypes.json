@@ -6,15 +6,16 @@
     "num_channel": 16,
     "num_class": 2,
     "queue_size" : 40,
-    "batch_size" : 5,
-    "log_dir" : "log_dir",
+    "batch_size" : 4,
+    "log_dir" : "dice",
     "padding": "SAME",
     "loss_function" : "cross_entropy",
     "save_iter": 100,
     "print_iter": 10,
-    "norm_threshold": 1.0,
+    "norm_threshold": 1000.0,
     "class_type" : 0,
     "train_iter": 10000,
     "lr" : 0.01,
-    "lr_decay_iter" : 2000
+    "lr_decay_iter" : 2000,
+    "epsilon" : 0.000001
 }
