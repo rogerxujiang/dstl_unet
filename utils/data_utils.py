@@ -644,7 +644,11 @@ class ImageData():
 
         L, C1, C2 = 1.0, 6.0, 7.5
 
-        evi = (nir - image_r) / (nir + C1 * image_r - C2 * image_b + L)
+        if (nir + C1 * image_r - C2 * image_b + L).all():
+            evi = (nir - image_r) / (nir + C1 * image_r - C2 * image_b + L)
+        else:
+            evi = np.zeros_like(nir)
+            
         evi = np.expand_dims(evi, 2)
 
         ndwi = (image_g - nir) / (image_g + nir)
