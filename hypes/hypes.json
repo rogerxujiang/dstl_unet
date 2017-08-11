@@ -14,6 +14,7 @@
     "print_iter": 100,
     "norm_threshold": 1000.0,
     "class_type" : 0,
+    "apply_class_balancing" : True
     "train_iter": 20000,
     "lr" : 0.001,
     "lr_decay_iter" : 2000,

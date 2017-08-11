@@ -449,6 +449,20 @@ def collect_stats():
 
 
 
+def calculate_class_weights():
+    '''
+
+    :return: class-wise true-label-area / false-label-area as a dictionary
+    '''
+    df = collect_stats()
+    df = df.fillna(0)
+    df = df.pivot(index = 'Class', columns = 'ImageId', values = 'TotalArea')
+    df = df.sum(axis=1)
+    df = df / (2500. - df)
+    return df.to_dict()
+
+
+
 def plot_stats(value, title):
     '''
     Plot 2D grid plot of statistics of MeanArea, Counts, TotalArea, STDArea.
