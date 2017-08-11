@@ -58,9 +58,11 @@ from matplotlib import cm
 from shapely import affinity
 import sys
 import seaborn as sns
+import os
 
 
-data_dir = '/home/ubuntu/dstl_unet'
+data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
+
 
 CLASSES = {
     1: 'Bldg',
