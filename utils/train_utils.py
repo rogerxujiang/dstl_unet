@@ -68,18 +68,34 @@ grid_sizes = pd.read_csv(os.path.join(data_dir, 'data/grid_sizes.csv'),
 x_crop = 3345
 y_crop = 3338
 
-test_names = ['6110_1_2', '6110_3_1']
-#train_names = ['6110_1_2', '6110_3_1']
-train_names = list(set(data_utils.all_train_names) - set(test_names))
+test_names = ['6110_1_2', '6110_3_1', '6100_1_3', '6120_2_2']
+# train_names = ['6110_1_2', '6110_3_1']
+# train_names = list(set(data_utils.all_train_names) - set(test_names))
 test_ids = [data_utils.image_IDs_dict_r[name] for name in test_names]
-train_ids = [data_utils.image_IDs_dict_r[name] for name in train_names]
+# train_ids = [data_utils.image_IDs_dict_r[name] for name in train_names]
 
 
 no_train_img = len(train_names)
 no_test_img = len(test_names)
 
 
-def get_all_data(train = True):
+def generate_train_ids(cl):
+    '''
+    Create train ids, and exclude the images with no true labels
+    :param cl: 
+    :return: 
+    '''
+    df = data_utils.collect_stats()
+    df = df.pivot(index = 'ImageId', columns = 'Class', values = 'TotalArea')
+    df = df.fillna(0)
+    df = df[df[data_utils.CLASSES[cl + 1]] != 0]
+
+    train_names = list(set(list(df.index.get_values())) - set(test_names))
+
+    return [data_utils.image_IDs_dict_r[name] for name in train_names]
+
+
+def get_all_data(img_ids, train = True):
     '''
     Load all the training feature and label into memory. This requires 35 GB
     memory on Mac and takes a few minutes to finish.
@@ -87,10 +103,9 @@ def get_all_data(train = True):
     '''
     image_feature = []
     image_label = []
-    img_ids = train_ids if train else test_ids
-    no_img = no_train_img if train else no_test_img
+    no_img = len(img_ids) if train else no_test_img
     phase = ['validation', 'training'][train]
-    for i in xrange(len(img_ids)):
+    for i in xrange(no_img):
         id = img_ids[i]
         image_data = data_utils.ImageData(id)
         image_data.create_train_feature()
@@ -124,11 +139,10 @@ def input_data(crop_size, class_id = 0, crop_per_img = 1,
     :param train:
     :return:
     '''
-    image_feature, image_label = get_all_data(train = train)
 
-    img_ids = train_ids if train else test_ids
-    no_img = no_train_img if train else no_test_img
-
+    img_ids = generate_train_ids(cl) if train else test_ids
+    no_img = len(img_ids)
+    image_feature, image_label = get_all_data(img_ids, train = train)
 
     while True:
 

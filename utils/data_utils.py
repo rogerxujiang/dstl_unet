@@ -440,7 +440,7 @@ def collect_stats():
         stat = image_stat(image_id)
         stat['ImageId'] = image_id
         stats.append(stat)
-        sys.stdout.write('\r[{}{}] {}%'.format('=' * image_no,
+        sys.stdout.write('\rCollecting class stats [{}{}] {}%'.format('=' * image_no,
                                                ' ' * (total_no - image_no),
                                                100 * image_no / total_no))
         sys.stdout.flush()
