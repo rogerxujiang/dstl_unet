@@ -70,13 +70,13 @@ y_crop = 3338
 
 test_names = ['6110_1_2', '6110_3_1', '6100_1_3', '6120_2_2']
 # train_names = ['6110_1_2', '6110_3_1']
-# train_names = list(set(data_utils.all_train_names) - set(test_names))
+train_names = list(set(data_utils.all_train_names) - set(test_names))
 test_ids = [data_utils.image_IDs_dict_r[name] for name in test_names]
-# train_ids = [data_utils.image_IDs_dict_r[name] for name in train_names]
+train_ids = [data_utils.image_IDs_dict_r[name] for name in train_names]
 
 
-no_train_img = len(train_names)
-no_test_img = len(test_names)
+# no_train_img = len(train_names)
+# no_test_img = len(test_names)
 
 
 def generate_train_ids(cl):
@@ -103,7 +103,7 @@ def get_all_data(img_ids, train = True):
     '''
     image_feature = []
     image_label = []
-    no_img = len(img_ids) if train else no_test_img
+    no_img = len(img_ids)
     phase = ['validation', 'training'][train]
     for i in xrange(no_img):
         id = img_ids[i]
@@ -140,7 +140,8 @@ def input_data(crop_size, class_id = 0, crop_per_img = 1,
     :return:
     '''
 
-    img_ids = generate_train_ids(cl) if train else test_ids
+    # img_ids = generate_train_ids(class_id) if train else test_ids
+    img_ids = train_ids if train else test_ids
     no_img = len(img_ids)
     image_feature, image_label = get_all_data(img_ids, train = train)
 

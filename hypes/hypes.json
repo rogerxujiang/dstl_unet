@@ -1,12 +1,12 @@
 {
-    "im_width" : 432,
-    "im_height" : 432,
-    "start_ind" : 92,
-    "valid_size" : 248,
+    "im_width" : 144,
+    "im_height" : 144,
+    "start_ind" : 32,
+    "valid_size" : 80,
     "num_channel": 16,
     "num_class": 2,
     "queue_size" : 40,
-    "batch_size" : 5,
+    "batch_size" : 60,
     "log_dir" : "log_dir",
     "padding": "SAME",
     "loss_function" : "combo-jaccard",
@@ -16,7 +16,7 @@
     "class_type" : 0,
     "apply_class_balancing" : false,
     "train_iter": 20000,
-    "lr" : 0.001,
+    "lr" : 0.01,
     "lr_decay_iter" : 2000,
     "epsilon" : 1.0
 }
