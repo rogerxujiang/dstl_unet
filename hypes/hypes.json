@@ -16,7 +16,7 @@
     "class_type" : 0,
     "apply_class_balancing" : false,
     "train_iter": 20000,
-    "lr" : 0.001,
+    "lr" : 0.0001,
     "lr_decay_iter" : 2000,
     "epsilon" : 1.0
 }
