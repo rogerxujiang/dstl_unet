@@ -23,7 +23,7 @@ def convert_image_to_display(img):
 
 
 
-def calculate_warp_matrix(img1, img2):
+def calculate_warp_matrix(img1, img2, img_id):
 
     img_size = img1.shape
     img_size1 = img2.shape
@@ -51,9 +51,13 @@ def calculate_warp_matrix(img1, img2):
     warp_mat = np.eye(2, 3, dtype=np.float32)
     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 1000, 1e-7)
 
-    (cc, warp_mat) = cv2.findTransformECC(p1, p2, warp_mat, warp_mode, criteria)
+    try:
+        (cc, warp_mat) = cv2.findTransformECC(p1, p2, warp_mat, warp_mode, criteria)
+    except:
+        warp_mat = np.eye(2, 3, dtype=np.float32)
+        cc = 0.
 
-    print("Align two rasters: cc:{}".format(cc))
+    print("Align two rasters for {}: cc:{}".format(img_id, cc))
     print("warp matrix: ")
     print warp_mat
 
@@ -85,55 +89,60 @@ def normalize_image(img):
 
 if __name__ == '__main__':
 
-    for image_id in range(len(data_utils.all_train_names)):
+    for phase in ['train', 'test']:
 
-        img = data_utils.ImageData(image_id)
-        images = img.read_image()
-        img.load_image()
+        len_names = {'train': len(data_utils.all_train_names), 'test': len(data_utils.all_test_names)}[phase]
 
+        for id in range(len_names):
 
-        img_3 = images['3']
-        shape_out = img_3.shape[0:2]
-        img_m_orig = images['M']
-        img_a_orig = images['A']
+            img = data_utils.ImageData(id, phase=phase)
+            img_id = img.image_id
+            images = img.read_image()
 
-        warp_matrix_m = calculate_warp_matrix(img_3, img_m_orig)
-        warp_matrix_a = calculate_warp_matrix(img_3, img_a_orig)
+            img_3 = images['3']
+            shape_out = img_3.shape[0:2]
+            img_m_orig = images['M']
+            img_a_orig = images['A']
 
-        np.save(open('image_alignment/{}_warp_matrix_m.npz'.format(img.imageId), 'w'), warp_matrix_m)
-        np.save(open('image_alignment/{}_warp_matrix_a.npz'.format(img.imageId), 'w'), warp_matrix_a)
+            warp_matrix_m = calculate_warp_matrix(img_3, img_m_orig, img_id + '_M')
+            warp_matrix_a = calculate_warp_matrix(img_3, img_a_orig, img_id + '_A')
 
-        img_m_register = data_utils.affine_transform(img_m_orig.astype(np.float32), warp_matrix_m, shape_out)
-        img_a_register = data_utils.affine_transform(img_a_orig.astype(np.float32), warp_matrix_a, shape_out)
+            np.save(open('image_alignment/{}_warp_matrix_m.npz'.format(img.image_id), 'w'), warp_matrix_m)
+            np.save(open('image_alignment/{}_warp_matrix_a.npz'.format(img.image_id), 'w'), warp_matrix_a)
 
-        img_3_rescale = convert_image_to_display(np.sum(img_3, 2))
-        img_m_orig_rescale = convert_image_to_display(np.sum(img_m_orig, axis=2))
-        img_a_orig_rescale = convert_image_to_display(np.sum(img_a_orig, axis=2))
-        img_m_register_rescale = convert_image_to_display(np.sum(img_m_register, axis=2))
-        img_a_register_rescale = convert_image_to_display(np.sum(img_a_register, axis=2))
+            # img.load_image()
 
-        empty_channel = np.zeros(shape_out).astype(np.uint8)
+            img_m_register = data_utils.affine_transform(img_m_orig.astype(np.float32), warp_matrix_m, shape_out)
+            img_a_register = data_utils.affine_transform(img_a_orig.astype(np.float32), warp_matrix_a, shape_out)
 
-        compare_m_orig = np.stack([img_m_orig_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
-        compare_m_register = np.stack([img_m_register_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
+            img_3_rescale = convert_image_to_display(np.sum(img_3, 2))
+            img_m_orig_rescale = convert_image_to_display(np.sum(img_m_orig, axis=2))
+            img_a_orig_rescale = convert_image_to_display(np.sum(img_a_orig, axis=2))
+            img_m_register_rescale = convert_image_to_display(np.sum(img_m_register, axis=2))
+            img_a_register_rescale = convert_image_to_display(np.sum(img_a_register, axis=2))
 
-        compare_a_orig = np.stack([img_a_orig_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
-        compare_a_register = np.stack([img_a_register_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
+            empty_channel = np.zeros(shape_out).astype(np.uint8)
 
-        filenames = [
-            './image_alignment/comparison/{}/3_rescale.png'.format(img.imageId),
-            './image_alignment/comparison/{}/m_orig.png'.format(img.imageId),
-            './image_alignment/comparison/{}/m_register.png'.format(img.imageId),
-            './image_alignment/comparison/{}/a_orig.png'.format(img.imageId),
-            './image_alignment/comparison/{}/a_register.png'.format(img.imageId),
-        ]
+            compare_m_orig = np.stack([img_m_orig_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
+            compare_m_register = np.stack([img_m_register_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
 
-        for fn in filenames:
-            if not os.path.exists(os.path.dirname(fn)):
-                os.mkdir(os.path.dirname(fn))
+            compare_a_orig = np.stack([img_a_orig_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
+            compare_a_register = np.stack([img_a_register_rescale, empty_channel, img_3_rescale], axis=-1).astype(np.uint8)
 
-        cv2.imwrite('./image_alignment/comparison/{}/3_rescale.png'.format(img.imageId),img_3_rescale[200:900,300:1200])
-        cv2.imwrite('./image_alignment/comparison/{}/m_orig.png'.format(img.imageId), compare_m_orig[200:900,300:1200,:])
-        cv2.imwrite('./image_alignment/comparison/{}/m_register.png'.format(img.imageId), compare_m_register[200:900,300:1200,:])
-        cv2.imwrite('./image_alignment/comparison/{}/a_orig.png'.format(img.imageId), compare_a_orig[200:900,300:1200,:])
-        cv2.imwrite('./image_alignment/comparison/{}/a_register.png'.format(img.imageId), compare_a_register[200:900,300:1200,:])
+            filenames = [
+                './image_alignment/comparison/{}/3_rescale.png'.format(img.image_id),
+                './image_alignment/comparison/{}/m_orig.png'.format(img.image_id),
+                './image_alignment/comparison/{}/m_register.png'.format(img.image_id),
+                './image_alignment/comparison/{}/a_orig.png'.format(img.image_id),
+                './image_alignment/comparison/{}/a_register.png'.format(img.image_id),
+            ]
+
+            for fn in filenames:
+                if not os.path.exists(os.path.dirname(fn)):
+                    os.mkdir(os.path.dirname(fn))
+
+            cv2.imwrite('./image_alignment/comparison/{}/3_rescale.png'.format(img.image_id),img_3_rescale[200:900,300:1200])
+            cv2.imwrite('./image_alignment/comparison/{}/m_orig.png'.format(img.image_id), compare_m_orig[200:900,300:1200,:])
+            cv2.imwrite('./image_alignment/comparison/{}/m_register.png'.format(img.image_id), compare_m_register[200:900,300:1200,:])
+            cv2.imwrite('./image_alignment/comparison/{}/a_orig.png'.format(img.image_id), compare_a_orig[200:900,300:1200,:])
+            cv2.imwrite('./image_alignment/comparison/{}/a_register.png'.format(img.image_id), compare_a_register[200:900,300:1200,:])

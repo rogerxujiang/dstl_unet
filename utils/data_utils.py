@@ -56,6 +56,9 @@ from matplotlib.patches import Patch
 import random
 from matplotlib import cm
 from shapely import affinity
+from shapely.affinity import scale
+from shapely.geometry import MultiPolygon, Polygon
+from collections import defaultdict
 import sys
 import seaborn as sns
 import os
@@ -114,6 +117,10 @@ _df = pd.read_csv(data_dir + '/data/train_wkt_v4.csv',
 _df1 = pd.read_csv(data_dir + '/data/grid_sizes.csv',
                    names = ['ImageId', 'Xmax', 'Ymin'], skiprows = 1)
 
+# sample_submission.csv is the file for submission
+_df2 = pd.read_csv(data_dir + '/data/sample_submission.csv',
+                  names=['ImageId', 'ClassId', 'MultipolygonWKT'], skiprows = 1)
+
 # Two of the training images were photoed at the same spot at different times, under
 # different weather condition. It's up to you to decide whether to exclude the duplicates
 # ('6110_1_2', '6110_3_1'). Here I exclude none of them.
@@ -121,11 +128,17 @@ duplicates = []
 
 train_wkt_v4 = _df[np.invert(np.in1d(_df.ImageId, duplicates))]
 grid_sizes = _df1[np.invert(np.in1d(_df1.ImageId, duplicates))]
+test_wkt = _df2
 
 all_train_names = sorted(train_wkt_v4.ImageId.unique())
+all_test_names = sorted(test_wkt.ImageId.unique())
 
-image_IDs_dict = dict(zip(np.arange(len(all_train_names)), all_train_names))
-image_IDs_dict_r = dict(zip(all_train_names, np.arange(len(all_train_names))))
+train_IDs_dict = dict(zip(np.arange(len(all_train_names)), all_train_names))
+train_IDs_dict_r = dict(zip(all_train_names, np.arange(len(all_train_names))))
+
+test_IDs_dict = dict(zip(np.arange(len(all_test_names)), all_test_names))
+test_IDs_dict_r = dict(zip(all_test_names, np.arange(len(all_test_names))))
+
 
 
 def resize(im, shape_out):
@@ -512,12 +525,133 @@ def plot_bar_stats():
 
 
 
+def jaccard_index(mask_1, mask_2):
+    '''
+    Calculate jaccard index between two masks
+    :param mask_1:
+    :param mask_2:
+    :return:
+    '''
+    assert len(mask_1.shape) == len(mask_2.shape) == 2
+    assert 0 <= np.amax(mask_1) <=1
+    assert 0 <= np.amax(mask_2) <=1
+
+    intersection = np.sum(mask_1.astype(np.float32) * mask_2.astype(np.float32))
+    union = np.sum(mask_1.astype(np.float32) * mask_2.astype(np.float32)) - \
+            intersection
+
+    if union == 0:
+        return 0.
+
+    return intersection / union
+
+
+
+def mask_to_polygons(mask, epsilon = 5, min_area = 1.):
+    '''
+    Generate polygons from mask
+    :param mask:
+    :param epsilon:
+    :param min_area:
+    :return:
+    '''
+    # find contours, cv2 switches the x-y coordiante of mask to y-x in contours
+    # This matches the wkt data in train_wkt_v4, which is desirable for submission
+    image, contours, hierarchy = cv2.findContours(
+        ((mask == 1) * 255).astype(np.uint8),
+        cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_KCOS)
+    # create approximate contours
+    approx_contours = [cv2.approxPolyDP(cnt, epsilon, True)
+                       for cnt in contours]
+
+    if not contours:
+        return MultiPolygon()
+
+    cnt_children = defaultdict(list)
+    child_contours = set()
+
+    assert hierarchy.shape[0] == 1
+
+    for idx, (_, _, _, parent_idx) in enumerate(hierarchy[0]):
+        if parent_idx != -1:
+            child_contours.add(idx)
+            cnt_children[parent_idx].append(approx_contours[idx])
+    # create actual polygon filtering by area (remove artifacts)
+    all_polygons = []
+
+    for idx, cnt in enumerate(approx_contours):
+        if idx not in child_contours and cv2.contourArea(cnt) >= min_area:
+            assert cnt.shape[1] == 1
+            poly = Polygon(shell = cnt[:, 0, :],
+                           holes = [c[:, 0, :] for c in cnt_children.get(idx, [])
+                                    if cv2.contourArea(c) >= min_area])
+            all_polygons.append(poly)
+    # approximating polygons might have created invalid ones, fix them
+    all_polygons = MultiPolygon(all_polygons)
+    if not all_polygons.is_valid:
+        all_polygons = all_polygons.buffer(0)
+        # Sometimes buffer() converts a simple Multipolygon to just a Polygon,
+        # need to keep it a Multi throughout
+        if all_polygons.type == 'Polygon':
+            all_polygons = MultiPolygon([all_polygons])
+
+    return all_polygons
+
+
+
+def make_submission():
+    '''
+    Make submission file from mask files
+    :param msk:
+    :return:
+    '''
+    print "Preparing submission file"
+    df = pd.read_csv(os.path.join(data_dir, 'data', 'sample_submission.csv'))
+    print df.head()
+    for id in df.ImageId.unique():
+
+        pred_labels = np.load(os.path.join(data_dir,'msk/10_{}.npy'.format(id)))
+        x_max = grid_sizes[grid_sizes.ImageId == id].Xmax.values[0]
+        y_min = grid_sizes[grid_sizes.ImageId == id].Ymin.values[0]
+        x_scaler, y_scaler = x_max / msk.shape[1], y_min / msk.shape[0]
+
+        for kls in CLASSES:
+            msk = np.squeeze(pred_labels[:, :, kls])
+            pred_polygons = mask_to_polygons(msk)
+
+            # x-y of mask is switched to y-x in pred_polygons
+            scaled_pred_polygons = scale(pred_polygons, xfact = x_scaler,
+                                         yfact = y_scaler, origin = (0., 0., 0.))
+            dummy = df[df.ImageId == id]
+            idx = dummy[dummy.ClassType == kls + 1].index[0]
+            df.iloc[idx, 2] = wkt.dumps(scaled_pred_polygons)
+
+            if idx % 100 == 0: print 'Working on image No. {}'.format(idx)
+
+    print df.head()
+    df.to_csv(os.path.join(data_dir, 'subm/1.csv'), index = False)
+
+
+
+def polygon_jaccard(final_polygons, train_polygons):
+    '''
+    Calcualte the jaccard index of two polygons, based on data type of
+    shapely.geometry.MultiPolygon
+    :param final_polygons:
+    :param train_polygons:
+    :return:
+    '''
+    return final_polygons.intersection(train_polygons).area /\
+    final_polygons.union(train_polygons).area
+
+
+
 class ImageData():
 
-    def __init__(self, image_id):
+    def __init__(self, image_id, phase = 'train'):
 
-        self.image_id = image_IDs_dict[image_id]
-        self.stat = image_stat(self.image_id)
+        self.image_id = train_IDs_dict[image_id] if phase == 'train' else test_IDs_dict[image_id]
+        self.stat = image_stat(self.image_id) if phase == 'train' else None
         self.three_band_image = None
         self.sixteen_band_image = None
         self.image = None
@@ -526,6 +660,10 @@ class ImageData():
         self.label = None
         self.crop_image = None
         self.train_feature = None
+        self.pred_mask = None
+
+    def load_pre_mask(self):
+        self.pred_mask = None
 
 
     def load_image(self):

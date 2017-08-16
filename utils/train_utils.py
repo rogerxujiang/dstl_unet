@@ -39,10 +39,7 @@ import data_utils
 import numpy as np
 import cv2
 import sys
-from shapely.geometry import MultiPolygon, Polygon
-from collections import defaultdict
-from shapely.affinity import scale
-import shapely.wkt as wkt
+
 
 
 data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
@@ -71,8 +68,8 @@ y_crop = 3338
 test_names = ['6110_1_2', '6110_3_1', '6100_1_3', '6120_2_2']
 # train_names = ['6110_1_2', '6110_3_1']
 train_names = list(set(data_utils.all_train_names) - set(test_names))
-test_ids = [data_utils.image_IDs_dict_r[name] for name in test_names]
-train_ids = [data_utils.image_IDs_dict_r[name] for name in train_names]
+test_ids = [data_utils.train_IDs_dict_r[name] for name in test_names]
+train_ids = [data_utils.train_IDs_dict_r[name] for name in train_names]
 
 
 # no_train_img = len(train_names)
@@ -92,7 +89,7 @@ def generate_train_ids(cl):
 
     train_names = list(set(list(df.index.get_values())) - set(test_names))
 
-    return [data_utils.image_IDs_dict_r[name] for name in train_names]
+    return [data_utils.train_IDs_dict_r[name] for name in train_names]
 
 
 def get_all_data(img_ids, train = True):
@@ -211,114 +208,3 @@ def input_data(crop_size, class_id = 0, crop_per_img = 1,
         yield np.stack(images, 0), np.stack(labels, 0)
 
 
-def jaccard_index(mask_1, mask_2):
-    '''
-    Calculate jaccard index between two masks
-    :param mask_1:
-    :param mask_2:
-    :return:
-    '''
-    assert len(mask_1.shape) == len(mask_2.shape) == 2
-    assert 0 <= np.amax(mask_1) <=1
-    assert 0 <= np.amax(mask_2) <=1
-
-    intersection = np.sum(mask_1.astype(np.float32) * mask_2.astype(np.float32))
-    union = np.sum(mask_1.astype(np.float32) * mask_2.astype(np.float32)) - \
-            intersection
-
-    if union == 0:
-        return 0.
-
-    return intersection / union
-
-
-def mask_to_polygons(mask, epsilon = 5, min_area = 1.):
-    '''
-    Generate polygons from mask
-    :param mask:
-    :param epsilon:
-    :param min_area:
-    :return:
-    '''
-    # find contours, cv2 switches the x-y coordiante of mask to y-x in contours
-    # This matches the wkt data in train_wkt_v4, which is desirable for submission
-    image, contours, hierarchy = cv2.findContours(
-        ((mask == 1) * 255).astype(np.uint8),
-        cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_KCOS)
-    # create approximate contours
-    approx_contours = [cv2.approxPolyDP(cnt, epsilon, True)
-                       for cnt in contours]
-
-    if not contours:
-        return MultiPolygon()
-
-    cnt_children = defaultdict(list)
-    child_contours = set()
-
-    assert hierarchy.shape[0] == 1
-
-    for idx, (_, _, _, parent_idx) in enumerate(hierarchy[0]):
-        if parent_idx != -1:
-            child_contours.add(idx)
-            cnt_children[parent_idx].append(approx_contours[idx])
-    # create actual polygon filtering by area (remove artifacts)
-    all_polygons = []
-
-    for idx, cnt in enumerate(approx_contours):
-        if idx not in child_contours and cv2.contourArea(cnt) >= min_area:
-            assert cnt.shape[1] == 1
-            poly = Polygon(shell = cnt[:, 0, :],
-                           holes = [c[:, 0, :] for c in cnt_children.get(idx, [])
-                                    if cv2.contourArea(c) >= min_area])
-            all_polygons.append(poly)
-    # approximating polygons might have created invalid ones, fix them
-    all_polygons = MultiPolygon(all_polygons)
-    if not all_polygons.is_valid:
-        all_polygons = all_polygons.buffer(0)
-        # Sometimes buffer() converts a simple Multipolygon to just a Polygon,
-        # need to keep it a Multi throughout
-        if all_polygons.type == 'Polygon':
-            all_polygons = MultiPolygon([all_polygons])
-
-    return all_polygons
-
-
-def make_submission():
-    '''
-    Make submission file from mask files
-    :param msk:
-    :return:
-    '''
-    print "Preparing submission file"
-    df = pd.read_csv(os.path.join(data_dir, 'data', 'sample_submission.csv'))
-    print df.head()
-    for id in df.ImageId.unique():
-
-        pred_labels = np.load(os.path.join(data_dir,'msk/10_{}.npy'.format(id)))
-        x_max = grid_sizes[grid_sizes.ImageId == id].Xmax.values[0]
-        y_min = grid_sizes[grid_sizes.ImageId == id].Ymin.values[0]
-        x_scaler, y_scaler = x_max / msk.shape[1], y_min / msk.shape[0]
-
-        for kls in CLASSES:
-            msk = np.squeeze(pred_labels[:, :, kls])
-            pred_polygons = mask_to_polygons(msk)
-
-            # x-y of mask is switched to y-x in pred_polygons
-            scaled_pred_polygons = scale(pred_polygons, xfact = x_scaler,
-                                         yfact = y_scaler, origin = (0., 0., 0.))
-            dummy = df[df.ImageId == id]
-            idx = dummy[dummy.ClassType == kls + 1].index[0]
-            df.iloc[idx, 2] = wkt.dumps(scaled_pred_polygons)
-
-            if idx % 100 == 0: print 'Working on image No. {}'.format(idx)
-
-    print df.head()
-    df.to_csv(os.path.join(data_dir, 'subm/1.csv'), index = False)
-
-'''
-
-print('Final jaccard',
-      final_polygons.intersection(train_polygons).area /
-      final_polygons.union(train_polygons).area)
-
-'''
