@@ -111,7 +111,7 @@ def get_all_data(img_ids, train = True):
         image_feature.append(image_data.train_feature[: x_crop, : y_crop, :])
         image_label.append(image_data.label[: x_crop, : y_crop, :])
 
-        sys.stdout.write('\rLoading {} data: [{}{}] {}%'.\
+        sys.stdout.write('\rLoading {} data: [{}{}] {}%\n'.\
                          format(phase,
                                 '=' * i,
                                 ' ' * (no_img - i - 1),
