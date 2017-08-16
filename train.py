@@ -326,9 +326,9 @@ if __name__ == '__main__':
         # This will take a few minutes
         data_gen[phase].next()
 
-    print '{} training images: {}'.format(len(train_utils.train_names), train_utils.train_names)
+    print '{} training images: {}\n'.format(len(train_utils.train_names), train_utils.train_names)
 
-    print 'Training parameters: {}'.format(H)
+    print 'Training parameters: {}\n'.format(H)
 
     with open(os.path.join(hypes_path, 'hypes.json'), 'w') as f:
         simplejson.dump(H, f)
