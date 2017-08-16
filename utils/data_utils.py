@@ -599,7 +599,7 @@ def mask_to_polygons(mask, epsilon = 5, min_area = 1.):
 
 
 
-def make_submission():
+def make_submission(cl = 0):
     '''
     Make submission file from mask files
     :param msk:
@@ -610,26 +610,25 @@ def make_submission():
     print df.head()
     for id in df.ImageId.unique():
 
-        pred_labels = np.load(os.path.join(data_dir,'msk/10_{}.npy'.format(id)))
+        pred_labels = np.load(os.path.join(data_dir,'msk/{}_{}.npy'.format(id, cl)))
         x_max = grid_sizes[grid_sizes.ImageId == id].Xmax.values[0]
         y_min = grid_sizes[grid_sizes.ImageId == id].Ymin.values[0]
         x_scaler, y_scaler = x_max / msk.shape[1], y_min / msk.shape[0]
 
-        for kls in CLASSES:
-            msk = np.squeeze(pred_labels[:, :, kls])
-            pred_polygons = mask_to_polygons(msk)
+        msk = np.squeeze(pred_labels)
+        pred_polygons = mask_to_polygons(msk)
 
-            # x-y of mask is switched to y-x in pred_polygons
-            scaled_pred_polygons = scale(pred_polygons, xfact = x_scaler,
+        # x-y of mask is switched to y-x in pred_polygons
+        scaled_pred_polygons = scale(pred_polygons, xfact = x_scaler,
                                          yfact = y_scaler, origin = (0., 0., 0.))
-            dummy = df[df.ImageId == id]
-            idx = dummy[dummy.ClassType == kls + 1].index[0]
-            df.iloc[idx, 2] = wkt.dumps(scaled_pred_polygons)
+        dummy = df[df.ImageId == id]
+        idx = dummy[dummy.ClassType == cl + 1].index[0]
+        df.iloc[idx, 2] = wkt.dumps(scaled_pred_polygons)
 
-            if idx % 100 == 0: print 'Working on image No. {}'.format(idx)
+        if idx % 100 == 0: print 'Working on image No. {}'.format(idx)
 
     print df.head()
-    df.to_csv(os.path.join(data_dir, 'subm/1.csv'), index = False)
+    df.to_csv(os.path.join(data_dir, 'subm/class_{}.csv'.format(cl)), index = False)
 
 
 
