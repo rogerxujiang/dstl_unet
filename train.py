@@ -375,5 +375,5 @@ if __name__ == '__main__':
             if step % save_iter == 0 or step == (train_iter - 1):
                 saver.save(sess, ckpt_path, global_step=global_step.eval())
 
-    coord.requst_stop()
+    coord.request_stop()
     coord.join()
