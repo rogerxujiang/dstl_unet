@@ -6,7 +6,7 @@ from utils import data_utils, train_utils
 import datetime
 import os
 import time
-import pandas as pd
+import sys
 
 
 
@@ -326,9 +326,9 @@ if __name__ == '__main__':
         # This will take a few minutes
         data_gen[phase].next()
 
-    print '{} training images: {}\n'.format(len(train_utils.train_names), train_utils.train_names)
+    sys.stdout.write('{} training images: {}\n'.format(len(train_utils.train_names), train_utils.train_names))
 
-    print 'Training parameters: {}\n'.format(H)
+    sys.stdout.write('Training parameters: {}\n'.format(H))
 
     with open(os.path.join(hypes_path, 'hypes.json'), 'w') as f:
         simplejson.dump(H, f)
@@ -368,7 +368,7 @@ if __name__ == '__main__':
                 str3 = 'Validate loss {0:.2f}; '.format(validate_loss)
                 str4 = 'Validate accuracy {}%; '.format(int(100 * validate_accuracy))
                 str5 = 'Time / image: {0:0.1f}ms'.format(1000 * dt if step else 0)
-                print str0 + str1 + str2 + str3 + str4 + str5 + '\n'
+                sys.stdout.write(str0 + str1 + str2 + str3 + str4 + str5 + '\n')
             else:
                 sess.run([train_op, loss['train']], feed_dict={learning_rate: lr})
 
