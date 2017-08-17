@@ -330,6 +330,8 @@ if __name__ == '__main__':
 
     sys.stdout.write('Training parameters: {}\n'.format(H))
 
+    sys.stdout.flush()
+
     with open(os.path.join(hypes_path, 'hypes.json'), 'w') as f:
         simplejson.dump(H, f)
 
@@ -369,6 +371,7 @@ if __name__ == '__main__':
                 str4 = 'Validate accuracy {}%; '.format(int(100 * validate_accuracy))
                 str5 = 'Time / image: {0:0.1f}ms'.format(1000 * dt if step else 0)
                 sys.stdout.write(str0 + str1 + str2 + str3 + str4 + str5 + '\n')
+                sys.stdout.flush()
             else:
                 sess.run([train_op, loss['train']], feed_dict={learning_rate: lr})
 
