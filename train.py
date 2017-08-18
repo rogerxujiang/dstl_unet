@@ -294,6 +294,10 @@ if __name__ == '__main__':
     now_path = str(now.month) + '-' + str(now.day) + '_' + str(now.hour) + '-' + str(now.minute) + '_' + H[
         'loss_function']
 
+    sys.stdout.write('checkpoint name :{}'.format(now_path))
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
     ckpt_path = os.path.join(log_dir, now_path, 'ckpt', 'ckpt')
     hypes_path = os.path.join(log_dir, now_path, 'hypes')
     summary_path = os.path.join(log_dir, now_path, 'summary')
@@ -327,8 +331,9 @@ if __name__ == '__main__':
         data_gen[phase].next()
 
     sys.stdout.write('{} training images: {}\n'.format(len(train_utils.train_names), train_utils.train_names))
-
+    sys.stdout.write('\n')
     sys.stdout.write('Training parameters: {}\n'.format(H))
+    sys.stdout.write('\n')
 
     sys.stdout.flush()
 
