@@ -164,8 +164,7 @@ def affine_transform(img, warp_matrix, out_shape):
     '''
     new_img = cv2.warpAffine(img, warp_matrix, (out_shape[1], out_shape[0]),
                              flags = cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP,
-                             borderMode= cv2.BORDER_CONSTANT,
-                             borderValue = (0, 0, 0))
+                             borderMode= cv2.BORDER_REPLICATE)
     # new_img[new_img == 0] = np.average(new_img)
     return new_img
 
