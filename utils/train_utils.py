@@ -121,6 +121,13 @@ def get_all_data(img_ids, train = True):
     image_feature = np.stack(image_feature, -1)
     image_label = np.stack(image_label, -1)
 
+    sys.stdout.write('Labels are{}valid.\n'.format(
+        ' ' if image_label.all() else ' not '))
+    sys.stdout.write('Image features are{}valid.\n'.format(
+        ' ' if image_feature.all() else ' not '))
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
     return np.rollaxis(image_feature, 3, 0), np.rollaxis(image_label, 3, 0)
 
 
