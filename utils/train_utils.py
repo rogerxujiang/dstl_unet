@@ -122,10 +122,14 @@ def get_all_data(img_ids, train = True):
     image_label = np.stack(image_label, -1)
 
     sys.stdout.write('Labels are{}valid.\n'.format(
-        ' ' if np.isfinite(image_label).all() else ' not '))
+        ' ' if np.isfinite(image_label).all() and \
+               (image_label >= 0).all() and (image_label <= 1).all() else ' not '))
     sys.stdout.write('Image features are{}valid.\n'.format(
-        ' ' if np.isfinite(image_feature).all() else ' not '))
+        ' ' if np.isfinite(image_feature).all() and \
+               (image_feature >= -5000).all() and (image_feature <= 5000).all() \
+            else ' not '))
     sys.stdout.write('\n')
+
     sys.stdout.flush()
 
     return np.rollaxis(image_feature, 3, 0), np.rollaxis(image_label, 3, 0)
