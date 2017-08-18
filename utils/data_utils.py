@@ -547,7 +547,7 @@ def jaccard_index(mask_1, mask_2):
 
 
 
-def mask_to_polygons(mask, img_id, epsilon = 5, min_area = 1.):
+def mask_to_polygons(mask, img_id, epsilon = 5, min_area = 1., test = True):
     '''
     Generate polygons from mask
     :param mask:
@@ -595,7 +595,7 @@ def mask_to_polygons(mask, img_id, epsilon = 5, min_area = 1.):
         if all_polygons.type == 'Polygon':
             all_polygons = MultiPolygon([all_polygons])
 
-    id = test_IDs_dict[img_id]
+    id = test_IDs_dict[img_id] if test else train_IDs_dict[img_id]
 
     x_max = grid_sizes[grid_sizes.ImageId == id].Xmax.values[0]
     y_min = grid_sizes[grid_sizes.ImageId == id].Ymin.values[0]
