@@ -537,7 +537,7 @@ def jaccard_index(mask_1, mask_2):
     assert 0 <= np.amax(mask_2) <=1
 
     intersection = np.sum(mask_1.astype(np.float32) * mask_2.astype(np.float32))
-    union = np.sum(mask_1.astype(np.float32) * mask_2.astype(np.float32)) - \
+    union = np.sum(mask_1.astype(np.float32) + mask_2.astype(np.float32)) - \
             intersection
 
     if union == 0:
