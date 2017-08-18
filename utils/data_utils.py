@@ -548,7 +548,7 @@ def jaccard_index(mask_1, mask_2):
 
 
 
-def mask_to_polygons(mask, img_id, epsilon = 5, min_area = 1., test = True):
+def mask_to_polygons(mask, img_id, epsilon = 1, min_area = 1., test = True):
     '''
     Generate polygons from mask
     :param mask:

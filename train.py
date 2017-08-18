@@ -364,13 +364,14 @@ if __name__ == '__main__':
                               summary_op],
                              feed_dict={learning_rate: lr})
                 summary_writer.add_summary(summaries, global_step=global_step.eval())
+                str6 = 'Class ({}); '.format(class_type)
                 str0 = 'Global step ({0}): LR: {1:0.5f}; '.format(global_step.eval(), lr)
                 str1 = 'Train loss {0:.2f}; '.format(train_loss)
                 str2 = 'Train accuracy {}%; '.format(int(100 * train_accuracy))
                 str3 = 'Validate loss {0:.2f}; '.format(validate_loss)
                 str4 = 'Validate accuracy {}%; '.format(int(100 * validate_accuracy))
                 str5 = 'Time / image: {0:0.1f}ms'.format(1000 * dt if step else 0)
-                sys.stdout.write(str0 + str1 + str2 + str3 + str4 + str5 + '\n')
+                sys.stdout.write(str6 + str0 + str1 + str2 + str3 + str4 + str5 + '\n')
                 sys.stdout.flush()
             else:
                 sess.run([train_op, loss['train']], feed_dict={learning_rate: lr})
