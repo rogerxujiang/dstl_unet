@@ -775,6 +775,7 @@ class ImageData():
         L, C1, C2 = 1.0, 6.0, 7.5
 
         evi = np.nan_to_num((nir - image_r) / (nir + C1 * image_r - C2 * image_b + L))
+        evi = evi.clip(max=np.percentile(evi, 99), min=np.percentile(evi, 1))
         evi = np.expand_dims(evi, 2)
 
         ndwi = (image_g - nir) / (image_g + nir)
@@ -785,6 +786,7 @@ class ImageData():
 
         # binary = (ccci > 0.11).astype(np.float32) marks water fairly well
         ccci = np.nan_to_num((nir - re) / (nir + re) * (nir - image_r) / (nir + image_r))
+        ccci = ccci.clip(max=np.percentile(ccci, 99.9), min=np.percentile(ccci, 0.1))
         ccci = np.expand_dims(ccci, 2)
 
         feature = np.concatenate([m, rgb, evi, ndwi, savi, ccci], 2)
