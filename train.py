@@ -357,9 +357,9 @@ if __name__ == '__main__':
         sess.run(tf.global_variables_initializer())
 
         sys.stdout.write('\n')
-        sys.stdout.write('#' * 60)
-        sys.stdout.write('Seat belt on! Training starts!'.ljust(45, '#').rjust(60, '#'))
-        sys.stdout.write('#' * 60)
+        sys.stdout.write('#' * 60 + '\n')
+        sys.stdout.write('Seat belt on! Training starts!'.ljust(45, '#').rjust(60, '#') +  '\n')
+        sys.stdout.write('#' * 60 + '\n')
         sys.stdout.write('\n')
         sys.stdout.flush()
 
@@ -395,8 +395,8 @@ if __name__ == '__main__':
     coord.join()
 
     sys.stdout.write('\n')
-    sys.stdout.write('#' * 60)
-    sys.stdout.write('U have arrived at ur destination!'.ljust(45, '#').rjust(60, '#'))
-    sys.stdout.write('#' * 60)
+    sys.stdout.write('#' * 60 + '\n')
+    sys.stdout.write('U have arrived at ur destination!'.ljust(45, '#').rjust(60, '#') + '\n')
+    sys.stdout.write('#' * 60 + '\n')
     sys.stdout.write('\n')
     sys.stdout.flush()
