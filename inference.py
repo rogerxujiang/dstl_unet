@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     sys.stdout.write('\n')
     sys.stdout.write('#' * 80 + '\n')
-    sys.stdout.write("Preparing submission file for class type {}\n".format(class_type).ljust(55, '#').rjust(80, '#') + '\n')
+    sys.stdout.write("Preparing submission file for class type {}".format(class_type).ljust(55, '#').rjust(80, '#') + '\n')
     sys.stdout.write('#' * 80 + '\n')
     sys.stdout.write('\n')
     sys.stdout.flush()
@@ -133,7 +133,7 @@ if __name__ == '__main__':
                 str1 = 'Working on Image No. {} Class {}: '.format(idx, class_type)
                 str2 = 'Time / image: {0:.2f} (mins); '. \
                     format((time.time() - start_time) / 60. / print_iter if idx else 0)
-                sys.stdout.write(str1 + str2)
+                sys.stdout.write(str1 + str2 + '\n')
                 sys.stdout.flush()
                 start_time = time.time()
 
