@@ -334,7 +334,6 @@ if __name__ == '__main__':
     sys.stdout.write('\n')
     sys.stdout.write('Training parameters: {}\n'.format(H))
     sys.stdout.write('\n')
-
     sys.stdout.flush()
 
     with open(os.path.join(hypes_path, 'hypes.json'), 'w') as f:
@@ -356,6 +355,14 @@ if __name__ == '__main__':
             threads[phase].start()
 
         sess.run(tf.global_variables_initializer())
+
+        sys.stdout.write('\n')
+        sys.stdout.write('#' * 60)
+        sys.stdout.write('Seat belt on! Training starts!'.ljust(45, '#').rjust(60, '#'))
+        sys.stdout.write('#' * 60)
+        sys.stdout.write('\n')
+        sys.stdout.flush()
+
         start = time.time()
         for step in xrange(train_iter):
             if step and step % lr_decay_iter == 0:
@@ -386,3 +393,10 @@ if __name__ == '__main__':
 
     coord.request_stop()
     coord.join()
+
+    sys.stdout.write('\n')
+    sys.stdout.write('#' * 60)
+    sys.stdout.write('U have arrived at ur destination!'.ljust(45, '#').rjust(60, '#'))
+    sys.stdout.write('#' * 60)
+    sys.stdout.write('\n')
+    sys.stdout.flush()
