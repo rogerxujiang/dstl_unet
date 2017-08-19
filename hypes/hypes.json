@@ -13,7 +13,7 @@
     "save_iter": 1000,
     "print_iter": 100,
     "norm_threshold": 1.0,
-    "class_type" : 4,
+    "class_type" : 5,
     "apply_class_balancing" : false,
     "train_iter": 9000,
     "lr" : 0.0001,
