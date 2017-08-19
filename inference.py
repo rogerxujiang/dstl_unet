@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     with tf.Session(config=config) as sess:
 
-        saver.restore(sess, save_path='log_dir//ckpt')
+        saver.restore(sess, save_path= 'log_dir//ckpt/ckpt-9000')
         start_time = time.time()
         sys.stdout.write('\n')
 
