@@ -1,3 +1,14 @@
+__author__ = 'rogerjiang'
+
+'''
+This file performs the inference based on the learned mode
+parameters (checkpoint). Each image is cut into 4 quarters due
+to the limit of gpu memory. Vertical and horizonta reflections,
+and [0, 90, 180, 270] degrees rotations are performed for each
+quarter, and the outputs of sigmoid predictions are later
+arithmetically averaged.
+'''
+
 import tensorflow as tf
 import simplejson
 from utils import data_utils, train_utils
@@ -15,12 +26,16 @@ import sys
 if __name__ == '__main__':
     hypes = './hypes/hypes.json'
     with open(hypes, 'r') as f:
+
         H = simplejson.load(f)
+
         H['batch_size'] = 1
         H['pad'] = 100
         H['x_width'] = 1920
         H['x_height'] = 1920
         H['print_iter'] = 100
+        H['save_iter'] = 500
+
         print_iter = H['print_iter']
         num_channel = H['num_channel']
         x_width = H['x_width']
@@ -28,16 +43,28 @@ if __name__ == '__main__':
         batch_size = H['batch_size']
         class_type = H['class_type']
         pad = H['pad']
-        [crop_width, crop_height] = [1700, 1700]
         class_type = H['class_type']
         log_dir = H['log_dir']
+        save_iter = H['save_iter']
 
-    img_in = tf.placeholder(dtype=tf.float32, shape=[batch_size, x_width, x_height, 16])
+    # Crop area for each inference, and this is limited by memory of k80 gpu
+    [crop_width, crop_height] = [1700, 1700]
+
+    img_in = tf.placeholder(dtype=tf.float32,
+                            shape=[batch_size, x_width, x_height, 16])
     logits, pred = train.build_pred(img_in, H, 'test')
 
 
     def test_input(img, img_size):
-
+        '''
+        This function cuts each image into 4 quarters:
+        ([upper, lower] * [left, right]), performs vertical and horizontal
+        reflections, and [0, 90, 180, 270] degrees rotations for each quarter.
+        It yields (4 * 2 * 4 =)32 images.
+        :param img:
+        :param img_size:
+        :return:
+        '''
         [img_width, img_height] = img_size
         for [x_start, x_end, y_start, y_end] in [
             [0, crop_width, 0, crop_height],
@@ -57,7 +84,15 @@ if __name__ == '__main__':
 
 
     def stitch_mask(img_stack, img_size, feat_shape):
-
+        '''
+        img_stack is the stack of pixel-wise inference of input images from
+        test_input. This function reverts the reflection and rotations and
+        stitches the 4 quarters together.
+        :param img_stack:
+        :param img_size:
+        :param feat_shape:
+        :return:
+        '''
         mask = np.zeros([8, img_size[0], img_size[1]])
         [img_width, img_height] = img_size
 
@@ -73,7 +108,8 @@ if __name__ == '__main__':
                 for [x_step, y_step] in [[1, 1], [-1, 1], [1, -1], [-1, -1]]:
 
                     img_stack[idx] = img_stack[idx] \
-                        [pad: pad + feat_shape[idx][0], pad: pad + feat_shape[idx][1]]
+                        [pad: pad + feat_shape[idx][0],
+                                     pad: pad + feat_shape[idx][1]]
 
                     img_stack[idx] = img_stack[idx][::x_step, ::y_step]
 
@@ -90,7 +126,8 @@ if __name__ == '__main__':
 
     sys.stdout.write('\n')
     sys.stdout.write('#' * 80 + '\n')
-    sys.stdout.write("Preparing submission file for class type {}".format(class_type).ljust(55, '#').rjust(80, '#') + '\n')
+    sys.stdout.write("Preparing submission file for class type {}".\
+                     format(class_type).ljust(55, '#').rjust(80, '#') + '\n')
     sys.stdout.write('#' * 80 + '\n')
     sys.stdout.write('\n')
     sys.stdout.flush()
@@ -101,9 +138,12 @@ if __name__ == '__main__':
 
     df = pd.read_csv('data/sample_submission.csv')
 
+    if not os.path.exists('./submission'):
+        os.makedirs('./submission')
+
     with tf.Session(config=config) as sess:
 
-        saver.restore(sess, save_path= 'log_dir//ckpt/ckpt-9000')
+        saver.restore(sess, save_path= 'log_dir/path_to_ckpt/ckpt/ckpt-9000')
         start_time = time.time()
         sys.stdout.write('\n')
 
@@ -117,28 +157,41 @@ if __name__ == '__main__':
 
                 mask_stack = []
                 shape_stack = []
-                for feat_shape, img in test_input(img_data.train_feature, img_data.image_size):
+                for feat_shape, img in test_input(
+                        img_data.train_feature, img_data.image_size):
                     predictions, = sess.run([pred], feed_dict={
-                        img_in: np.reshape(img, [batch_size, x_width, x_height, num_channel])})
+                        img_in:
+                            np.reshape(
+                                img,
+                                [batch_size, x_width, x_height, num_channel])})
                     mask_stack.append(predictions)
                     shape_stack.append(feat_shape)
 
                 mask = stitch_mask(mask_stack, img_data.image_size, shape_stack)
 
-                polygons = data_utils.mask_to_polygons(mask=mask, img_id=img_id, test=True, epsilon=1)
+                polygons = data_utils.mask_to_polygons(
+                    mask=mask, img_id=img_id, test=True, epsilon=1)
 
-                df.iloc[idx, 2] = wkt.dumps(polygons) if len(polygons) else 'MULTIPOLYGON EMPTY'
+                df.iloc[idx, 2] = \
+                    wkt.dumps(polygons) if len(polygons) else 'MULTIPOLYGON EMPTY'
 
             if idx % print_iter == 0:
                 str1 = 'Working on Image No. {} Class {}: '.format(idx, class_type)
                 str2 = 'Time / image: {0:.2f} (mins); '. \
-                    format((time.time() - start_time) / 60. / print_iter if idx else 0)
+                    format((time.time() - start_time) / 60. / print_iter \
+                                                      if idx else 0)
                 sys.stdout.write(str1 + str2 + '\n')
                 sys.stdout.flush()
                 start_time = time.time()
 
+            # Save some intermediate results in case of interruption.
+            if idx % save_iter == 0:
+                df.to_csv(os.path.join('.',
+                                       'submission/class_{}.csv'.format(class_type)), index=False)
+
     sys.stdout.write('\n')
     print df.head()
-    if not os.path.exists('./submission'):
-        os.makedirs('./submission')
-    df.to_csv(os.path.join('.', 'submission/class_{}.csv'.format(class_type)), index=False)
+
+    df.to_csv(
+        os.path.join('.', 'submission/class_{}.csv'.format(class_type)),
+        index=False)

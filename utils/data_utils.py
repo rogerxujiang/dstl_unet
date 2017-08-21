@@ -11,9 +11,9 @@ Notes on the data files:
 
 train_wkt_v4.csv: training labels with ImageId, ClassType, MultipolygonWKT
 
-train_geoson_v3 (similar to train_wkt_v4.csv): training labels with ImageId (folder name), 
-ClassType (detailed, name of .geojson files), Multipolygon (data of .geojson files, also 
-contains detailed ClassType information)
+train_geoson_v3 (similar to train_wkt_v4.csv): training labels with ImageId 
+(folder name),  ClassType (detailed, name of .geojson files), Multipolygon 
+(data of .geojson files, also contains detailed ClassType information)
 
 grid_size.csv: sizes of all images with ImageId, 0<Xmax<1, -1<Ymin<0 
 (size of images, assuming origin (0,0) is at the upper left corner)
@@ -24,24 +24,25 @@ sixteen_band: all 16-band images, in name of ImageId_{A,M,P}.tif
 
 sample_submission.csv: submission with ImageId, ClassType, MultipolygonWKT
 
-If the order of dimension in all the image data is x-y, this order is switched to y-x in 
-grid_sizes and wkt data from train_wkt_v4.
+If the order of dimension in all the image data is x-y, this order is switched 
+to y-x in grid_sizes and wkt data from train_wkt_v4.
 
 -------------
 '''
 
 '''
-Basically, the combination of ClassType and MultipolygonWKT gives the voxel-wise class labels.
+Basically, the combination of ClassType and MultipolygonWKT gives the voxel-wise 
+class labels.
 
 The 'three_band' and 'sixteen_band' folders are the input for training.
 
 ImageId connects the class labels with the training data.
 
-MultipolygonWKT is relative position in the figure and can be converted to pixel coordinate with 
-the grid_size (Xmax, Ymin)
+MultipolygonWKT is relative position in the figure and can be converted to pixel 
+coordinate with the grid_size (Xmax, Ymin)
 
-There is slightly mismatch between the three_band and sixteen_band data due to delay in 
-measurements, such that they should be aligned.
+There is slightly mismatch between the three_band and sixteen_band data due to 
+delay in measurements, such that they should be aligned.
 
 '''
 
@@ -121,9 +122,10 @@ _df1 = pd.read_csv(data_dir + '/data/grid_sizes.csv',
 _df2 = pd.read_csv(data_dir + '/data/sample_submission.csv',
                   names=['ImageId', 'ClassId', 'MultipolygonWKT'], skiprows = 1)
 
-# Two of the training images were photoed at the same spot at different times, under
-# different weather condition. It's up to you to decide whether to exclude the duplicates
-# ('6110_1_2', '6110_3_1'). Here I exclude none of them.
+# Two of the training images were photoed at the same spot at different times,
+# under different weather condition. It's up to you to decide whether to
+# exclude the duplicates ('6110_1_2', '6110_3_1'). Here I exclude none of them.
+
 duplicates = []
 
 train_wkt_v4 = _df[np.invert(np.in1d(_df.ImageId, duplicates))]
@@ -149,14 +151,15 @@ def resize(im, shape_out):
     :param shape_out:
     :return:
     '''
-    return cv2.resize(im, (shape_out[1], shape_out[0]), interpolation=cv2.INTER_CUBIC)
+    return cv2.resize(im, (shape_out[1], shape_out[0]),
+                      interpolation=cv2.INTER_CUBIC)
 
 
 
 def affine_transform(img, warp_matrix, out_shape):
     '''
-    Apply affine transformation using warp_matrix to img, and perform interpolation as
-    needed
+    Apply affine transformation using warp_matrix to img, and perform
+    interpolation as needed
     :param img:
     :param warp_matrix:
     :param out_shape:
@@ -172,8 +175,8 @@ def affine_transform(img, warp_matrix, out_shape):
 
 def get_polygon_list(image_id, class_type):
     '''
-    Load the wkt data (relative coordiantes of polygons) from csv file and returns a
-    list of polygons (in the format of shapely multipolygon)
+    Load the wkt data (relative coordiantes of polygons) from csv file and
+    returns a list of polygons (in the format of shapely multipolygon)
     :param image_id:
     :param class_type:
     :return:
@@ -226,8 +229,9 @@ def generate_contours(polygon_list, img_size, xymax):
     perim_list = [convert_coordinate_to_raster(to_ind(poly.exterior.coords),
                                                img_size, xymax)
                   for poly in polygon_list]
-    inter_list = [convert_coordinate_to_raster(to_ind(poly.coords), img_size, xymax)
-                  for poly_ex in polygon_list for poly in poly_ex.interiors]
+    inter_list = [convert_coordinate_to_raster(
+        to_ind(poly.coords), img_size, xymax)
+        for poly_ex in polygon_list for poly in poly_ex.interiors]
 
     return perim_list, inter_list
 
@@ -437,8 +441,9 @@ def image_stat(image_id):
             std_area[cl] = np.std([poly.area for poly in polygon_list])\
                            / img_area * 100.
 
-    return pd.DataFrame({'Class': CLASSES, 'Counts': counts, 'TotalArea': total_area,
-                         'MeanArea': mean_area, 'STDArea': std_area})
+    return pd.DataFrame({'Class': CLASSES, 'Counts': counts,
+                         'TotalArea': total_area, 'MeanArea': mean_area,
+                         'STDArea': std_area})
 
 
 
@@ -454,9 +459,10 @@ def collect_stats():
         stat = image_stat(image_id)
         stat['ImageId'] = image_id
         stats.append(stat)
-        sys.stdout.write('\rCollecting class stats [{}{}] {}%'.format('=' * image_no,
-                                               ' ' * (total_no - image_no),
-                                               100 * image_no / total_no))
+        sys.stdout.write('\rCollecting class stats [{}{}] {}%'.\
+                         format('=' * image_no,
+                                ' ' * (total_no - image_no),
+                                100 * image_no / total_no))
         sys.stdout.flush()
     sys.stdout.write('\n')
     return pd.concat(stats)
@@ -626,7 +632,8 @@ class ImageData():
 
     def __init__(self, image_id, phase = 'train'):
 
-        self.image_id = train_IDs_dict[image_id] if phase == 'train' else test_IDs_dict[image_id]
+        self.image_id = train_IDs_dict[image_id] \
+            if phase == 'train' else test_IDs_dict[image_id]
         self.stat = image_stat(self.image_id) if phase == 'train' else None
         self.three_band_image = None
         self.sixteen_band_image = None
@@ -644,7 +651,8 @@ class ImageData():
 
     def load_image(self):
         '''
-        Load three band and sixteen band images, registered and at the same resolution
+        Load three band and sixteen band images, registered and at the same
+        resolution
         Assign value for image_size
         :return:
         '''
@@ -774,7 +782,8 @@ class ImageData():
 
         L, C1, C2 = 1.0, 6.0, 7.5
 
-        evi = np.nan_to_num((nir - image_r) / (nir + C1 * image_r - C2 * image_b + L))
+        evi = np.nan_to_num(
+            (nir - image_r) / (nir + C1 * image_r - C2 * image_b + L))
         evi = evi.clip(max=np.percentile(evi, 99), min=np.percentile(evi, 1))
         evi = np.expand_dims(evi, 2)
 
@@ -785,8 +794,11 @@ class ImageData():
         savi = np.expand_dims(savi, 2)
 
         # binary = (ccci > 0.11).astype(np.float32) marks water fairly well
-        ccci = np.nan_to_num((nir - re) / (nir + re) * (nir - image_r) / (nir + image_r))
-        ccci = ccci.clip(max=np.percentile(ccci, 99.9), min=np.percentile(ccci, 0.1))
+        ccci = np.nan_to_num(
+            (nir - re) / (nir + re) * (nir - image_r) / (nir + image_r))
+        ccci = ccci.clip(
+            max=np.percentile(ccci, 99.9),
+            min=np.percentile(ccci, 0.1))
         ccci = np.expand_dims(ccci, 2)
 
         feature = np.concatenate([m, rgb, evi, ndwi, savi, ccci], 2)
@@ -815,7 +827,8 @@ class ImageData():
         polygon_list = {}
         for cl in CLASSES:
             polygon_list[cl] = get_polygon_list(self.image_id, cl)
-            print '{}: {} \t\tcount = {}'.format(cl, CLASSES[cl], len(polygon_list[cl]))
+            print '{}: {} \t\tcount = {}'.format(
+                cl, CLASSES[cl], len(polygon_list[cl]))
 
         legend = plot_polygon(polygon_list = polygon_list, ax = ax)
 
@@ -875,12 +888,14 @@ class ImageData():
         polygon_list = {}
         for cl in CLASSES:
             polygon_list[cl] = get_polygon_list(self.image_id, cl)
-            print '{}: {} \t\tcount = {}'.format(cl, CLASSES[cl], len(polygon_list[cl]))
+            print '{}: {} \t\tcount = {}'.format(
+                cl, CLASSES[cl], len(polygon_list[cl]))
 
         three_band_rescale = scale_percentile(self.three_band_image)
-        legend = plot_overlay(three_band_rescale, ax, self.image_id, 'P',polygon_list,
-                     scaler=self.image_size / np.array([self._xymax[1], self._xymax[0]]),
-                              alpha = alpha, rgb = True)
+        legend = plot_overlay(
+            three_band_rescale, ax, self.image_id, 'P',polygon_list,
+            scaler=self.image_size / np.array([self._xymax[1], self._xymax[0]]),
+            alpha = alpha, rgb = True)
 
         ax.set_xlim(x_range[0], x_range[1])
         ax.set_ylim(y_range[0], y_range[1])
@@ -922,5 +937,6 @@ class ImageData():
             crop_area[0][1] = ref_point[0] + patch_size
             crop_area[1][1] = ref_point[1] + patch_size
         else:
-            raise NotImplementedError('"method" should either be "random" or "grid"')
+            raise NotImplementedError(
+                '"method" should either be "random" or "grid"')
         self.crop_image = crop(self.image, crop_area)

@@ -1,3 +1,14 @@
+__author__ = 'rogerjiang'
+
+'''
+This file performs the training of a U-net convolutional neural network
+for pixel-wise classification (or segmentation) of satellite images.
+
+The model performs binary classification for each class. The model parameters 
+is loaded from ./hypes/hypes.json and you can change "class_type" parameter to
+the desired class for training.
+'''
+
 import tensorflow as tf
 import simplejson
 import threading
@@ -12,7 +23,8 @@ import sys
 
 def argument_scope(H, phase):
     '''
-    This returns the arg_scope for slim.arg_scope(), which defines the options for slim.functions
+    This returns the arg_scope for slim.arg_scope(), which defines the options
+    for slim.functions
     '''
     padding = H['padding']
     is_training = {'train': True, 'validate': False, 'test': False}[phase]
@@ -30,14 +42,20 @@ def argument_scope(H, phase):
                         padding=padding,
                         normalizer_fn=slim.batch_norm,
                         # normalizer_fn=None,
-                        weights_initializer=tf.contrib.layers.variance_scaling_initializer()):
-        with slim.arg_scope([slim.batch_norm, slim.dropout], is_training=is_training):
-            with slim.arg_scope([slim.max_pool2d], stride=pool_stride, kernel_size=pool_kernel):
+                        weights_initializer=\
+                                tf.contrib.layers.variance_scaling_initializer()):
+        with slim.arg_scope([slim.batch_norm, slim.dropout],
+                            is_training=is_training):
+            with slim.arg_scope([slim.max_pool2d],
+                                stride=pool_stride, kernel_size=pool_kernel):
                 with slim.arg_scope([slim.conv2d_transpose],
                                     activation_fn=None,
                                     normalizer_fn=None,
                                     padding=padding,
-                                    weights_initializer=tf.contrib.layers.variance_scaling_initializer()) as sc:
+                                    weights_initializer=\
+                                            tf.contrib.layers.\
+                                                    variance_scaling_initializer()
+                                    ) as sc:
                     return sc
 
 
@@ -139,8 +157,8 @@ def build_pred(x_in, H, phase):
 
         scope_name = 'pred'
         with tf.variable_scope(scope_name, reuse=reuse):
-            # layer_1 = slim.conv2d(layer_2, num_class, conv_kernel_1, scope='conv1', activation_fn=None, normalizer_fn=None)
-            layer_1 = slim.conv2d(layer_2, 1, conv_kernel_1, scope='conv1', activation_fn=None, normalizer_fn=None)
+            layer_1 = slim.conv2d(layer_2, 1, conv_kernel_1, scope='conv1',
+                                  activation_fn=None, normalizer_fn=None)
 
             early_feature[scope_name] = layer_1
 
@@ -164,7 +182,8 @@ def build_loss(x_in, y_in, H, phase):
     apply_class_balancing = H['apply_class_balancing']
 
     logits, pred = build_pred(x_in, H, phase)
-    y_crop = tf.cast(tf.slice(y_in, begin=[0, start_ind, start_ind], size=[-1, valid_size, valid_size]), tf.float32)
+    y_crop = tf.cast(tf.slice(y_in, begin=[0, start_ind, start_ind],
+                              size=[-1, valid_size, valid_size]), tf.float32)
     logits_crop = tf.slice(logits,
                            begin=[0, start_ind, start_ind],
                            size=[-1, valid_size, valid_size])
@@ -172,20 +191,25 @@ def build_loss(x_in, y_in, H, phase):
                                  begin=[0, start_ind, start_ind],
                                  size=[-1, valid_size, valid_size]), tf.float32)
     if apply_class_balancing:
-        class_weight = data_utils.calculate_class_weights()[data_utils.CLASSES[class_type + 1]]
+        class_weight = data_utils.calculate_class_weights()\
+            [data_utils.CLASSES[class_type + 1]]
     # formulation of weighted cross entropy loss, dice index: https://arxiv.org/pdf/1707.03237.pdf
     if H['loss_function'] == 'cross_entropy':
         if apply_class_balancing:
             loss = tf.reduce_mean(
                 tf.nn.weighted_cross_entropy_with_logits(
-                    targets=y_crop, logits=logits_crop, pos_weight=1. / class_weight))
+                    targets=y_crop,
+                    logits=logits_crop, pos_weight=1. / class_weight))
         else:
-            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=y_crop, logits=logits_crop))
+            loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    labels=y_crop, logits=logits_crop))
 
     elif H['loss_function'] == 'dice':
 
         intersection = tf.reduce_sum(tf.multiply(y_crop, pred_crop))
-        union = tf.reduce_sum(tf.square(y_crop)) + tf.reduce_sum(tf.square(pred_crop))
+        union = tf.reduce_sum(tf.square(y_crop)) + \
+                tf.reduce_sum(tf.square(pred_crop))
         loss = 1. - 2 * intersection / (union + tf.constant(epsilon))
 
     elif H['loss_function'] == 'jaccard':
@@ -197,31 +221,40 @@ def build_loss(x_in, y_in, H, phase):
         if apply_class_balancing:
             cen_loss = tf.reduce_mean(
                 tf.nn.weighted_cross_entropy_with_logits(
-                    targets=y_crop, logits=logits_crop, pos_weight=1. / class_weight))
+                    targets=y_crop,
+                    logits=logits_crop, pos_weight=1. / class_weight))
         else:
-            cen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=y_crop, logits=logits_crop))
+            cen_loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    labels=y_crop, logits=logits_crop))
 
         intersection = tf.reduce_sum(tf.multiply(y_crop, pred_crop))
         union = tf.reduce_sum(y_crop) + tf.reduce_sum(pred_crop) - intersection
-        jaccard_loss = - tf.log((intersection + tf.constant(epsilon)) / (union + tf.constant(epsilon)))
+        jaccard_loss = - tf.log((intersection + tf.constant(epsilon)) / \
+                                (union + tf.constant(epsilon)))
         loss = cen_loss + jaccard_loss
 
     elif H['loss_function'] == 'combo-dice':
         if apply_class_balancing:
             cen_loss = tf.reduce_mean(
                 tf.nn.weighted_cross_entropy_with_logits(
-                    targets=y_crop, logits=logits_crop, pos_weight=1. / class_weight))
+                    targets=y_crop,
+                    logits=logits_crop, pos_weight=1. / class_weight))
         else:
-            cen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=y_crop, logits=logits_crop))
+            cen_loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    labels=y_crop, logits=logits_crop))
 
         intersection = tf.reduce_sum(tf.multiply(y_crop, pred_crop))
         union = tf.reduce_sum(y_crop) + tf.reduce_sum(pred_crop) - intersection
-        dice_loss = - tf.log((intersection + tf.constant(epsilon)) / (union + tf.constant(epsilon)))
+        dice_loss = - tf.log((intersection + tf.constant(epsilon)) / \
+                             (union + tf.constant(epsilon)))
         loss = cen_loss + dice_loss
 
     pred_thres = tf.cast(tf.greater(pred_crop, 0.5), tf.float32)
     inter = tf.reduce_sum(tf.multiply(tf.cast(y_crop, tf.float32), pred_thres))
-    uni = tf.reduce_sum(tf.cast(y_crop, tf.float32)) + tf.reduce_sum(pred_thres) - inter
+    uni = tf.reduce_sum(tf.cast(y_crop, tf.float32)) + \
+          tf.reduce_sum(pred_thres) - inter
     jaccard = inter / (uni + tf.constant(epsilon))
 
     return loss, jaccard, logits_crop, pred_crop
@@ -242,7 +275,8 @@ def build(queues, H):
     loss, accuracy, x_in, y_in, logits, pred = {}, {}, {}, {}, {}, {}
     for phase in ['train', 'validate']:
         x_in[phase], y_in[phase] = queues[phase].dequeue_many(batch_size)
-        loss[phase], accuracy[phase], logits[phase], pred[phase] = build_loss(x_in[phase], y_in[phase], H, phase)
+        loss[phase], accuracy[phase], logits[phase], pred[phase] = \
+            build_loss(x_in[phase], y_in[phase], H, phase)
 
     learning_rate = tf.placeholder(dtype=tf.float32)
     opt = tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=0.8, beta2=0.99)
@@ -291,8 +325,8 @@ if __name__ == '__main__':
         batch_size = H['batch_size']
     now = datetime.datetime.now()
 
-    now_path = str(now.month) + '-' + str(now.day) + '_' + str(now.hour) + '-' + str(now.minute) + '_' + H[
-        'loss_function']
+    now_path = str(now.month) + '-' + str(now.day) + '_' + \
+               str(now.hour) + '-' + str(now.minute) + '_' + H['loss_function']
 
     sys.stdout.write('checkpoint name :{}'.format(now_path))
     sys.stdout.write('\n')
@@ -317,20 +351,24 @@ if __name__ == '__main__':
     for phase in ['train', 'validate']:
         x_in[phase] = tf.placeholder(dtype=tf.float32)
         y_in[phase] = tf.placeholder(dtype=tf.float32)
-        queues[phase] = tf.FIFOQueue(capacity=queue_size, shapes=shape, dtypes=(tf.float32, tf.float32))
+        queues[phase] = tf.FIFOQueue(
+            capacity=queue_size, shapes=shape, dtypes=(tf.float32, tf.float32))
         enqueue_op[phase] = queues[phase].enqueue_many([x_in[phase], y_in[phase]])
 
-    loss, accuracy, train_op, summary_op, learning_rate, global_step = build(queues, H)
+    loss, accuracy, train_op, summary_op, learning_rate, global_step = \
+        build(queues, H)
     data_gen = {}
     for phase in ['train', 'validate']:
         is_train = {'train': True, 'validate': False}[phase]
-        data_gen[phase] = train_utils.input_data(crop_per_img=1, class_id=class_type, reflection=True,
-                                                 rotation=360, train=is_train, crop_size=im_width)
+        data_gen[phase] = train_utils.input_data(
+            crop_per_img=1, class_id=class_type, reflection=True,
+            rotation=360, train=is_train, crop_size=im_width)
         # Run the generator once to make sure the data is loaded into the memory
         # This will take a few minutes
         data_gen[phase].next()
 
-    sys.stdout.write('{} training images: {}\n'.format(len(train_utils.train_names), train_utils.train_names))
+    sys.stdout.write('{} training images: {}\n'.format(
+        len(train_utils.train_names), train_utils.train_names))
     sys.stdout.write('\n')
     sys.stdout.write('Training parameters: {}\n'.format(H))
     sys.stdout.write('\n')
@@ -358,7 +396,8 @@ if __name__ == '__main__':
 
         sys.stdout.write('\n')
         sys.stdout.write('#' * 60 + '\n')
-        sys.stdout.write('Seat belt on! Training starts!'.ljust(45, '#').rjust(60, '#') +  '\n')
+        sys.stdout.write(
+            'Seat belt on! Training starts!'.ljust(45, '#').rjust(60, '#') +  '\n')
         sys.stdout.write('#' * 60 + '\n')
         sys.stdout.write('\n')
         sys.stdout.flush()
@@ -371,19 +410,26 @@ if __name__ == '__main__':
             if step % print_iter == 0 or step == (train_iter - 1):
                 dt = (time.time() - start) / batch_size / print_iter
                 start = time.time()
-                _, train_loss, train_accuracy, validate_loss, validate_accuracy, summaries = \
-                    sess.run([train_op, loss['train'], accuracy['train'], loss['validate'], accuracy['validate'],
-                              summary_op],
+                _, train_loss, \
+                train_accuracy, validate_loss, \
+                validate_accuracy, summaries = \
+                    sess.run([train_op, loss['train'],
+                              accuracy['train'], loss['validate'],
+                              accuracy['validate'], summary_op],
                              feed_dict={learning_rate: lr})
-                summary_writer.add_summary(summaries, global_step=global_step.eval())
+                summary_writer.add_summary(
+                    summaries, global_step=global_step.eval())
                 str6 = 'Class ({}); '.format(class_type)
-                str0 = 'Global step ({0}): LR: {1:0.5f}; '.format(global_step.eval(), lr)
+                str0 = 'Global step ({0}): LR: {1:0.5f}; '.format(
+                    global_step.eval(), lr)
                 str1 = 'Train loss {0:.2f}; '.format(train_loss)
                 str2 = 'Train accuracy {}%; '.format(int(100 * train_accuracy))
                 str3 = 'Validate loss {0:.2f}; '.format(validate_loss)
-                str4 = 'Validate accuracy {}%; '.format(int(100 * validate_accuracy))
+                str4 = 'Validate accuracy {}%; '.format(
+                    int(100 * validate_accuracy))
                 str5 = 'Time / image: {0:0.1f}ms'.format(1000 * dt if step else 0)
-                sys.stdout.write(str6 + str0 + str1 + str2 + str3 + str4 + str5 + '\n')
+                sys.stdout.write(
+                    str6 + str0 + str1 + str2 + str3 + str4 + str5 + '\n')
                 sys.stdout.flush()
             else:
                 sess.run([train_op, loss['train']], feed_dict={learning_rate: lr})
@@ -396,7 +442,8 @@ if __name__ == '__main__':
 
     sys.stdout.write('\n')
     sys.stdout.write('#' * 60 + '\n')
-    sys.stdout.write('U have arrived at ur destination!'.ljust(45, '#').rjust(60, '#') + '\n')
+    sys.stdout.write(
+        'U have arrived at ur destination!'.ljust(45, '#').rjust(60, '#') + '\n')
     sys.stdout.write('#' * 60 + '\n')
     sys.stdout.write('\n')
     sys.stdout.flush()
