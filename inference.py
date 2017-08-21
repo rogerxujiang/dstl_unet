@@ -23,6 +23,105 @@ import sys
 
 
 
+def test_input(img, img_size, H):
+    '''
+    This function cuts each image into 4 quarters:
+    ([upper, lower] * [left, right]), performs vertical and horizontal
+    reflections, and [0, 90, 180, 270] degrees rotations for each quarter.
+    It yields (4 * 2 * 4 =)32 images.
+    :param img:
+    :param img_size:
+    :return:
+    '''
+    [img_width, img_height] = img_size
+    [crop_width, crop_height] = H['crop_size']
+
+    for [x_start, x_end, y_start, y_end] in [
+        [0, crop_width, 0, crop_height],
+        [0, crop_width, crop_height, img_height],
+        [crop_width, img_width, 0, crop_height],
+        [crop_width, img_width, crop_height, img_height],
+    ]:
+        feature = img[x_start: x_end, y_start:y_end, :]
+        for feat_trans in [feature, np.rollaxis(feature, 1, 0)]:
+            for [x_step, y_step] in [[1, 1], [-1, 1], [1, -1], [-1, -1]]:
+                feature_w_padding = cv2.copyMakeBorder(
+                    feat_trans[::x_step, ::y_step, :],
+                    pad, x_width - pad - feat_trans.shape[0],
+                    pad, x_height - pad - feat_trans.shape[1],
+                    cv2.BORDER_REFLECT_101)
+                yield feat_trans.shape, feature_w_padding
+
+
+
+def pred_for_each_quarter(sess, img_in, pred, img_data, H):
+    '''
+
+    :param sess:
+    :param img_in:
+    :param pred:
+    :param img_data:
+    :param H:
+    :return:
+    '''
+    mask_stack, shape_stack = [], []
+    for feat_shape, img in test_input(
+            img_data.train_feature, img_data.image_size, H):
+        predictions, = sess.run(
+            [pred],
+            feed_dict={img_in: np.reshape(img,
+                                          [batch_size,
+                                           x_width,
+                                           x_height,
+                                           num_channel])})
+        mask_stack.append(predictions)
+        shape_stack.append(feat_shape)
+    return mask_stack, shape_stack
+
+def stitch_mask(img_stack, img_size, feat_shape, H):
+    '''
+    img_stack is the stack of pixel-wise inference of input images from
+    test_input. This function reverts the reflection and rotations and
+    stitches the 4 quarters together.
+    :param img_stack:
+    :param img_size:
+    :param feat_shape:
+    :return:
+    '''
+    mask = np.zeros([8, img_size[0], img_size[1]])
+    [img_width, img_height] = img_size
+    [crop_width, crop_height] = H['crop_size']
+    pad = H['pad']
+
+    idx = 0
+    for [x_start, x_end, y_start, y_end] in [
+        [0, crop_width, 0, crop_height],
+        [0, crop_width, crop_height, img_height],
+        [crop_width, img_width, 0, crop_height],
+        [crop_width, img_width, crop_height, img_height],
+    ]:
+        quarter = 0
+        for feat_trans in range(2):
+            for [x_step, y_step] in [[1, 1], [-1, 1], [1, -1], [-1, -1]]:
+
+                img_stack[idx] = img_stack[idx] \
+                    [pad: pad + feat_shape[idx][0],
+                                 pad: pad + feat_shape[idx][1]]
+
+                img_stack[idx] = img_stack[idx][::x_step, ::y_step]
+
+                if feat_trans == 1:
+                    img_stack[idx] = np.rollaxis(img_stack[idx], 1, 0)
+
+                mask[quarter, x_start: x_end, y_start: y_end] = img_stack[idx]
+
+                quarter += 1
+                idx += 1
+
+    return np.squeeze((np.mean(mask, axis=0) > 0.5).astype(np.int))
+
+
+
 if __name__ == '__main__':
     hypes = './hypes/hypes.json'
     with open(hypes, 'r') as f:
@@ -35,6 +134,7 @@ if __name__ == '__main__':
         H['x_height'] = 1920
         H['print_iter'] = 100
         H['save_iter'] = 500
+        H['crop_size'] = [1700, 1700]
 
         print_iter = H['print_iter']
         num_channel = H['num_channel']
@@ -46,83 +146,12 @@ if __name__ == '__main__':
         class_type = H['class_type']
         log_dir = H['log_dir']
         save_iter = H['save_iter']
-
-    # Crop area for each inference, and this is limited by memory of k80 gpu
-    [crop_width, crop_height] = [1700, 1700]
+        # Crop area for each inference, and this is limited by memory of k80 gpu
+        [crop_width, crop_height] = H['crop_size']
 
     img_in = tf.placeholder(dtype=tf.float32,
                             shape=[batch_size, x_width, x_height, 16])
     logits, pred = train.build_pred(img_in, H, 'test')
-
-
-    def test_input(img, img_size):
-        '''
-        This function cuts each image into 4 quarters:
-        ([upper, lower] * [left, right]), performs vertical and horizontal
-        reflections, and [0, 90, 180, 270] degrees rotations for each quarter.
-        It yields (4 * 2 * 4 =)32 images.
-        :param img:
-        :param img_size:
-        :return:
-        '''
-        [img_width, img_height] = img_size
-        for [x_start, x_end, y_start, y_end] in [
-            [0, crop_width, 0, crop_height],
-            [0, crop_width, crop_height, img_height],
-            [crop_width, img_width, 0, crop_height],
-            [crop_width, img_width, crop_height, img_height],
-        ]:
-            feature = img[x_start: x_end, y_start:y_end, :]
-            for feat_trans in [feature, np.rollaxis(feature, 1, 0)]:
-                for [x_step, y_step] in [[1, 1], [-1, 1], [1, -1], [-1, -1]]:
-                    feature_w_padding = cv2.copyMakeBorder(
-                        feat_trans[::x_step, ::y_step, :],
-                        pad, x_width - pad - feat_trans.shape[0],
-                        pad, x_height - pad - feat_trans.shape[1],
-                        cv2.BORDER_REFLECT_101)
-                    yield feat_trans.shape, feature_w_padding
-
-
-    def stitch_mask(img_stack, img_size, feat_shape):
-        '''
-        img_stack is the stack of pixel-wise inference of input images from
-        test_input. This function reverts the reflection and rotations and
-        stitches the 4 quarters together.
-        :param img_stack:
-        :param img_size:
-        :param feat_shape:
-        :return:
-        '''
-        mask = np.zeros([8, img_size[0], img_size[1]])
-        [img_width, img_height] = img_size
-
-        idx = 0
-        for [x_start, x_end, y_start, y_end] in [
-            [0, crop_width, 0, crop_height],
-            [0, crop_width, crop_height, img_height],
-            [crop_width, img_width, 0, crop_height],
-            [crop_width, img_width, crop_height, img_height],
-        ]:
-            quarter = 0
-            for feat_trans in range(2):
-                for [x_step, y_step] in [[1, 1], [-1, 1], [1, -1], [-1, -1]]:
-
-                    img_stack[idx] = img_stack[idx] \
-                        [pad: pad + feat_shape[idx][0],
-                                     pad: pad + feat_shape[idx][1]]
-
-                    img_stack[idx] = img_stack[idx][::x_step, ::y_step]
-
-                    if feat_trans == 1:
-                        img_stack[idx] = np.rollaxis(img_stack[idx], 1, 0)
-
-                    mask[quarter, x_start: x_end, y_start: y_end] = img_stack[idx]
-
-                    quarter += 1
-                    idx += 1
-
-        return np.squeeze((np.mean(mask, axis=0) > 0.5).astype(np.int))
-
 
     sys.stdout.write('\n')
     sys.stdout.write('#' * 80 + '\n')
@@ -155,19 +184,9 @@ if __name__ == '__main__':
                 img_data.load_image()
                 img_data.create_train_feature()
 
-                mask_stack = []
-                shape_stack = []
-                for feat_shape, img in test_input(
-                        img_data.train_feature, img_data.image_size):
-                    predictions, = sess.run([pred], feed_dict={
-                        img_in:
-                            np.reshape(
-                                img,
-                                [batch_size, x_width, x_height, num_channel])})
-                    mask_stack.append(predictions)
-                    shape_stack.append(feat_shape)
-
-                mask = stitch_mask(mask_stack, img_data.image_size, shape_stack)
+                mask_stack, shape_stack = pred_for_each_quarter(
+                    sess, img_in, pred, img_data, H)
+                mask = stitch_mask(mask_stack, img_data.image_size, shape_stack, H)
 
                 polygons = data_utils.mask_to_polygons(
                     mask=mask, img_id=img_id, test=True, epsilon=1)
@@ -186,8 +205,9 @@ if __name__ == '__main__':
 
             # Save some intermediate results in case of interruption.
             if idx % save_iter == 0:
-                df.to_csv(os.path.join('.',
-                                       'submission/class_{}.csv'.format(class_type)), index=False)
+                df.to_csv(
+                    os.path.join('.','submission/class_{}.csv'.format(class_type)),
+                    index=False)
 
     sys.stdout.write('\n')
     print df.head()
