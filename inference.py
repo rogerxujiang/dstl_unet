@@ -35,6 +35,7 @@ def test_input(img, img_size, H):
     '''
     [img_width, img_height] = img_size
     [crop_width, crop_height] = H['crop_size']
+    pad = H['pad']
 
     for [x_start, x_end, y_start, y_end] in [
         [0, crop_width, 0, crop_height],
