@@ -67,6 +67,11 @@ def pred_for_each_quarter(sess, img_in, pred, img_data, H):
     :param H:
     :return:
     '''
+    num_channel = H['num_channel']
+    x_width = H['x_width']
+    x_height = H['x_height']
+    batch_size = H['batch_size']
+
     mask_stack, shape_stack = [], []
     for feat_shape, img in test_input(
             img_data.train_feature, img_data.image_size, H):
