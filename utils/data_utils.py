@@ -903,7 +903,7 @@ class ImageData():
         ax.set_ylabel(x_range[1] - x_range[0])
 
         ax.legend(handles = legend,
-                  bbox_to_anchor = (0.9, 0.95),
+                  bbox_to_anchor = (0.95, 0.99),
                   bbox_transform = plt.gcf().transFigure,
                   ncol = 5,
                   fontsize = 'large',
