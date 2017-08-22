@@ -548,7 +548,7 @@ def jaccard_index(mask_1, mask_2):
             intersection
 
     if union == 0:
-        return 0.
+        return 1.
 
     return intersection / union
 

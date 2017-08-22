@@ -87,7 +87,7 @@ def generate_train_ids(cl):
     df = df.fillna(0)
     df = df[df[data_utils.CLASSES[cl + 1]] != 0]
 
-    train_names = list(set(list(df.index.get_values())) - set(test_names))
+    train_names = sorted(list(df.index.get_values()))
 
     return [data_utils.train_IDs_dict_r[name] for name in train_names]
 
