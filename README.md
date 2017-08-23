@@ -1,10 +1,11 @@
-# A U-net neural network for objection detection (or segmentation) of satellite images
+# A U-net using Tensorflow for objection detection (or segmentation) of satellite images
 Dstl Satellite Imagery Feature Detection
 # Prerequisites
 
 ## Hardware
 * Nvidia K80 Tesla GPU
-* 64 GB ram
+* 61 GB ram
+The author developed and trained the model on a `p2.xlarge` instance on AWS, which comes with the above hardware. At the beginning of the training, all the training images and labels are loaded into RAM to avoid the slow file  I/O, so a large RAM (up to 50 GB) is required. The batch size and size of patches of images in `train.py` and `inference.py` are customized for the ~11 GB memory on K80 GPU.
 
 ## Software and Packages
 * python == 2.7
