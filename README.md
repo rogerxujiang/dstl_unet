@@ -14,10 +14,12 @@ This figure shows the statistics of percentage ares for all classes of all the t
 ## Hardware
 * Nvidia K80 Tesla GPU
 * 61 GB RAM
-The author developed and trained the model on a `p2.xlarge` instance on AWS, which comes with the above hardware. At the beginning of the training for each class, all the training images and labels are loaded into RAM to avoid the slow file  I/O, so a large RAM (up to 50 GB) is required. The batch size and patches size  of images in training and predictions are also customized for the ~11 GB memory on K80 GPU.
+
+The model was developed and trained on a `p2.xlarge` instance on AWS, which comes with the above hardware. At the beginning of the training for each class, all the 25 training images and the corresponding labels are loaded into RAM to avoid file  I/O during the training, which can slow down the training. Therefore a large RAM (up to 50 GB) is required. The batch size and patches size of images in training and predictions are also customized for the ~11 GB memory on K80 GPU.
 
 ## Software and Packages
 * python == 2.7
+* tensorflow == 1.0.1
 * descartes == 1.1.0
 * matplotlib == 2.0.0
 * numpy == 1.12.0
@@ -26,7 +28,6 @@ The author developed and trained the model on a `p2.xlarge` instance on AWS, whi
 * seaborn == 0.7.1
 * shapely == 1.6.0
 * simplejson == 3.10.0
-* tensorflow == 1.0.1
 * tifffile == 0.12.0
 
 To install all the requirements:
