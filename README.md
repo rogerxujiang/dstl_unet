@@ -40,6 +40,7 @@ conda install -c https://conda.binstar.org/menpo opencv3
 # Download the data
 
 Download the data from kaggle website: https://www.kaggle.com/c/dstl-satellite-imagery-feature-detection/data
+
 Put the data into the `./data/` folder.
 
 # Train the model
@@ -47,11 +48,11 @@ The model is built to train a voxel-wise binary classifier for each of the 10 cl
 ```
 python train.py |& tee output.txt
 ```
-All the print out is saved in `output.txt`. All other log for each training is saved at a folder in `./log_dir`, with a folder name of `./log_dir/month-day_hour-min_lossfunction`, including a TF checkpoint for every 1000-batch, a summary point for every 100-batch, and the hyper parameter used for the training. The last TF checkpoint is used to generate predictions.
-The final version of this code use all the labeled data for training. You can set the `test_names` in `./utils/train_utils.py`, and exclude them from `train_names` for cross validation.
+All the print out is saved in `output.txt`. All other logs for each training is saved at a folder in `./log_dir`, with a folder name of `./log_dir/month-day_hour-min_lossfunction`, including a TF checkpoint for every 1000-batch, a summary point for every 100-batch, and the hyper parameters for the training. The last TF checkpoint is used to generate predictions.
+The final version of this code includes all the labeled data for training. You can set the `test_names` in `./utils/train_utils.py`, and exclude them from the `train_names` parameters to perform cross validation.
 
 # Visualize the training
-To see the learning curve, run the following code in terminal:
+To monitor the learning curve on the fly using `tensorboard`, run the following code in terminal:
 ```
 tensorboard --port 6006 --logdir summary_path --host 127.0.0.1
 ```
@@ -60,16 +61,17 @@ The following figures are examples of learning curves for the training of class 
 ![Learning curve of validation](https://user-images.githubusercontent.com/6231739/29622328-1d16a7cc-87f1-11e7-8137-4cd07c1d9af7.png)
 
 # Make predictions
+Modify the `save_path` parameter of `saver.restore()` in `inference.py` to the path of the last checkpoint and change the `class_type` in `./hypes/hypes.json` to the desired class type to generate predictions:
 ```
 python inference.py |& tee test_output.txt
 ```
 All the print out will be saved in `test_output.txt`
 # Merge submission and submit
-To merge the prediction files for all classes (e.g. `./submission/class_0.csv` for class 0), run the following in terminal:
+To merge the prediction files of all classes (e.g. `./submission/class_0.csv` for class 0), run the following in terminal:
 ```
 python merge_submission.py
 ```
-A few errors of `non-noded intersection` were encountered during my submission. This can be fixed by running `python topology_exception.py` for each of the error. The script `topology_exception.py` will create a hole around the `point` parameter, which can be found from the error message. You could also run the following in a python console:
+A few errors of `non-noded intersection` were encountered during my submission. This can be fixed by running `python topology_exception.py` for each of the error. The script `topology_exception.py` will create a hole around the `point`, which can be found from the error message. You could also run the following in a python console:
 
 ```
 repair_topology_exception('submission/valid_submission.csv', 
