@@ -1,17 +1,19 @@
 # A U-net using Tensorflow for objection detection (or segmentation) of satellite images
 
-The goal of this project is to develop models for Dstl Satellite Imagery Feature Detection, in terms of contours (`wkt` type of data). There are 10 types of overlapping objects, 0. Buildings, 1. Misc, 2. Road, 3. Track, 4. Trees, 5. Crops, 6. Waterway, 7. Standing water, 8. Vehicle Large, 9. Vehicle Small. The code converts the contours into masks, and trains a binary classifier for each class of object. A U-net with batch norm developed in tensorflow is used as the neural network model. A combination of cross entropy and soft Jaccard index are used as loss function and the Adam optimizer is used for training. The following figures show examples of the training features (RGB band (3 channels)  + A band (8 channels) + M band (8 channels) + P band (1 channel)) and labels. The code to generate them are in `visualization.ipynb`.
+The goal of this project is to develop models for Dstl Satellite Imagery Feature Detection on kaggle. The training dataset includes 25 images, each with 20 channels (RGB band (3 channels)  + A band (8 channels) + M band (8 channels) + P band (1 channel)), and the corresponding labels of objects. There are 10 types of overlapping objects labeled with contours (`wkt` type of data), including 0. Buildings, 1. Misc, 2. Road, 3. Track, 4. Trees, 5. Crops, 6. Waterway, 7. Standing water, 8. Vehicle Large, 9. Vehicle Small. 
+
+This code converts the contours into masks, and then trains a binary classifier for each class of object. A U-net with batch norm developed in tensorflow is used as the neural network model. A combination of cross entropy and soft Jaccard index, and the Adam optimizer are used as the loss function and the optimizer respectively. The following figures show examples of the training features and labels from one of the training examples. The code to generate these figures can be found in `visualization.ipynb`.
 
 ![All bands](https://user-images.githubusercontent.com/6231739/29629077-8f59cdc8-8805-11e7-92d1-978bfc3b2f6d.png)
 ![Labels](https://user-images.githubusercontent.com/6231739/29629079-915f1f4c-8805-11e7-9c02-02e1c40500f7.png)
 
-This picture shows the statistics of class labels of all the training data.
+This figure shows the statistics of class labels of all the training data.
 ![Stats](https://user-images.githubusercontent.com/6231739/29629084-94624fde-8805-11e7-913b-f852ec4d79f8.png)
 
 # Prerequisites
 ## Hardware
 * Nvidia K80 Tesla GPU
-* 61 GB ram
+* 61 GB RAM
 The author developed and trained the model on a `p2.xlarge` instance on AWS, which comes with the above hardware. At the beginning of the training for each class, all the training images and labels are loaded into RAM to avoid the slow file  I/O, so a large RAM (up to 50 GB) is required. The batch size and patches size  of images in training and predictions are also customized for the ~11 GB memory on K80 GPU.
 
 ## Software and Packages
