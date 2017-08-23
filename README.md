@@ -1,4 +1,4 @@
-# A U-net using Tensorflow for objection detection (or segmentation) of satellite images
+# A U-net based on Tensorflow for objection detection (or segmentation) of satellite images
 
 The goal of this project is to develop models for Dstl Satellite Imagery Feature Detection on kaggle. The training dataset includes 25 images, each with 20 channels (RGB band (3 channels)  + A band (8 channels) + M band (8 channels) + P band (1 channel)), and the corresponding labels of objects. There are 10 types of overlapping objects labeled with contours (`wkt` type of data), including 0. Buildings, 1. Misc, 2. Road, 3. Track, 4. Trees, 5. Crops, 6. Waterway, 7. Standing water, 8. Vehicle Large, 9. Vehicle Small. 
 
