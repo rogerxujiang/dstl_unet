@@ -2,6 +2,30 @@
 Dstl Satellite Imagery Feature Detection
 # Prerequisites
 
+## Hardware
+* Nvidia K80 Tesla GPU
+* 64 GB ram
+
+## Software and Packages
+* python == 2.7
+* descartes == 1.1.0
+* matplotlib == 2.0.0
+* numpy == 1.12.0
+* opencv-python == 3.3.0.9
+* pandas == 0.20.3
+* seaborn == 0.7.1
+* shapely == 1.6.0
+* simplejson == 3.10.0
+* tensorflow == 1.0.1
+* tifffile == 0.12.0
+
+To install all the requirements:
+```
+pip install -r requirements.txt
+conda install -c https://conda.binstar.org/menpo opencv3
+```
+
+
 # Download the data
 
 Download the data from kaggle website: https://www.kaggle.com/c/dstl-satellite-imagery-feature-detection/data
