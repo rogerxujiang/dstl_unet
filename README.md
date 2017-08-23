@@ -1,7 +1,11 @@
 # A U-net using Tensorflow for objection detection (or segmentation) of satellite images
-Dstl Satellite Imagery Feature Detection
-# Prerequisites
 
+Dstl Satellite Imagery Feature Detection
+![All bands](https://user-images.githubusercontent.com/6231739/29629077-8f59cdc8-8805-11e7-92d1-978bfc3b2f6d.png)
+![Labels](https://user-images.githubusercontent.com/6231739/29629079-915f1f4c-8805-11e7-9c02-02e1c40500f7.png)
+![Stats](https://user-images.githubusercontent.com/6231739/29629084-94624fde-8805-11e7-913b-f852ec4d79f8.png)
+
+# Prerequisites
 ## Hardware
 * Nvidia K80 Tesla GPU
 * 61 GB ram
