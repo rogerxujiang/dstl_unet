@@ -7,7 +7,7 @@ This code converts the contours into masks, and then trains a voxel-wise binary 
 ![All bands](https://user-images.githubusercontent.com/6231739/29629077-8f59cdc8-8805-11e7-92d1-978bfc3b2f6d.png)
 ![Labels](https://user-images.githubusercontent.com/6231739/29629079-915f1f4c-8805-11e7-9c02-02e1c40500f7.png)
 
-This figure shows the statistics of percentage ares for all classes of all the training data. (Note: on some images, the sum is over 100% because of overlap between classes.)
+This figure shows the statistics of percentage area for all classes of all the training data. (Note: on some images, the sum is over 100% because of overlap between classes.)
 ![Stats](https://user-images.githubusercontent.com/6231739/29629084-94624fde-8805-11e7-913b-f852ec4d79f8.png)
 
 # Prerequisites
