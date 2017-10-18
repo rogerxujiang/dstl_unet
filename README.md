@@ -1,3 +1,5 @@
+(Check out my Medium post (https://goo.gl/Ussdr1) for more details of this project.)
+
 # A U-net based on Tensorflow for objection detection (or segmentation) of satellite images
 
 The goal of this project is to develop models for Dstl Satellite Imagery Feature Detection contest on kaggle. The result scores 0.46 on the public test data set and 0.44 on the private test data set, would rank No. 7 out of 419 on the private leaderboard. 
